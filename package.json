@@ -1,0 +1,31 @@
+{
+  "name": "fastify-auth",
+  "version": "1.0.0",
+  "description": "fastify authentication service",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "pm2": "pm2 start ecosystem.config.js"
+  },
+  "keywords": [
+    "fastify",
+    "nodejs",
+    "authentication",
+    "docker",
+    "grafana"
+  ],
+  "author": "ericnguyen1206",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/jwt": "^10.0.0",
+    "@opentelemetry/instrumentation-fastify": "^0.53.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.6.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7",
+    "uuid": "^13.0.0"
+  }
+}
