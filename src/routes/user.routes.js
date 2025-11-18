@@ -4,12 +4,12 @@ async function userRoutes(fastify, options) {
     // Controller placeholder
     // Lấy thông tin profile của user hiện tại
     fastify.get('/profile', {
-        preHandler: [fastify.authenticate],
+        preHandler: fastify.authenticate,
     }, async (request, reply) => {
         const userId = request.user.id;
         const row = await new Promise((resolve, reject) => {
             db.get(
-                "SELECT id, username, created_at FROM users WHERE id = ?",
+                "SELECT id, email, username, created_at FROM users WHERE id = ?",
                 [userId],
                 (err, row) => {
                     if (err) {
@@ -31,7 +31,7 @@ async function userRoutes(fastify, options) {
 
     // Cập nhật username của user hiện tại
     fastify.put('/profile', {
-        preHandler: [fastify.authenticate],
+        preHandler: fastify.authenticate,
         schema: {
             body: {
                 type: 'object',

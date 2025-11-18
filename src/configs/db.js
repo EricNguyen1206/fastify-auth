@@ -3,17 +3,20 @@ const sqlite3 = require("sqlite3");
 const { v4: uuidv4 } = require("uuid");
 
 async function dbConnector(fastify, options) {
+    console.log("TEST", process.env.DB_PATH);
+    
   var db = new sqlite3.Database(
-    "sqlitecloud://cq3bxqoivz.g2.sqlite.cloud:8860/test?apikey=NlbVPbh54tLp1AMbmMelAWr6JDgOacIdUapdgXUDoTc"
+    process.env.DB_PATH || ":memory:"
   );
 
   db.serialize(function () {
     db.run(
       "CREATE TABLE IF NOT EXISTS users ( \
   id TEXT PRIMARY KEY, \
+  email TEXT UNIQUE NOT NULL, \
   username TEXT UNIQUE NOT NULL, \
   password TEXT NOT NULL, \
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')) \
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP \
 );"
     );
 
@@ -22,7 +25,8 @@ async function dbConnector(fastify, options) {
   id TEXT PRIMARY KEY, \
   user_id TEXT NOT NULL, \
   token TEXT UNIQUE NOT NULL, \
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')), \
+  expires_at DATETIME NOT NULL, \
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, \
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE \
 );"
     );
