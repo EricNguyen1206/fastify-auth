@@ -30,8 +30,19 @@ export const config = {
   
   database: {
     type: process.env.DB_TYPE || 'sqlite', // 'sqlite' or 'sqlitecloud'
-    path: process.env.DB_PATH || join(__dirname, '../data/app.db'),
-    connectionString: process.env.DB_CONNECTION_STRING || null
+    path: process.env.DB_PATH || join(__dirname, '../../data/app.db'),
+    connectionString: process.env.DB_CONNECTION_STRING || null,
+    // Prisma DATABASE_URL - construct from DB_TYPE and DB_PATH if not set
+    url: process.env.DATABASE_URL || (
+      process.env.DB_TYPE === 'sqlitecloud' 
+        ? process.env.DB_CONNECTION_STRING 
+        : `file:${process.env.DB_PATH || './data/app.db'}`
+    )
+  },
+  
+  rateLimit: {
+    max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+    timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW, 10) || 15 * 60 * 1000, // 15 minutes
   },
   
   loki: {
@@ -42,6 +53,7 @@ export const config = {
 
 // Validate required config in production
 if (!config.isDev) {
+  console.log('Validating production config...');
   const required = ['JWT_SECRET', 'COOKIE_SECRET'];
   const missing = required.filter(key => !process.env[key]);
   

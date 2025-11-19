@@ -26,7 +26,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:3001';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
 // Generate random user data
 function generateUser() {
