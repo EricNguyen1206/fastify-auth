@@ -1,7 +1,7 @@
 // src/server.js
 // OpenTelemetry must be initialized FIRST, before any other imports
-// import { initializeOpenTelemetry } from './configs/otel.js';
-// initializeOpenTelemetry();
+import { initializeOpenTelemetry } from './configs/otel.js';
+initializeOpenTelemetry();
 
 console.log('Server file loaded');
 
@@ -13,6 +13,7 @@ import { getLoggerConfig } from './configs/logger.js';
 import databasePlugin from './plugins/database.plugin.js';
 import authPlugin from './plugins/auth.plugin.js';
 import rateLimitPlugin from './plugins/rate-limit.plugin.js';
+import auditPlugin from './plugins/audit.plugin.js';
 
 // Routes
 import authRoutes from './routes/auth/index.js';
@@ -44,6 +45,7 @@ const start = async () => {
     // Register plugins
     console.log('Registering plugins...');
     await fastify.register(databasePlugin);
+    await fastify.register(auditPlugin); // Register audit plugin early
     await fastify.register(authPlugin);
     await fastify.register(rateLimitPlugin);
     

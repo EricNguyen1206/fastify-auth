@@ -1,30 +1,95 @@
-# OpenTelemetry Integration Guide
+# OpenTelemetry Integration Guide - Professional Audit Logging
 
 ## Overview
-This project uses OpenTelemetry (OTel) for unified observability - logs, traces, and metrics following industry standards.
+This project uses **OpenTelemetry (OTel)** for professional, enterprise-grade observability and audit logging. All logs include distributed tracing context, sensitive data filtering, and structured metadata for compliance and security monitoring.
 
 ## Architecture
 
 ```
-Application → OpenTelemetry SDK → OTLP Exporter → Loki (via OTLP) → Grafana
+Application → OpenTelemetry SDK → OTLP Exporter → Loki (OTLP) → Grafana
+                ↓
+        Pino Logger (with OTel instrumentation)
+                ↓
+        Custom Audit Logger (with trace context)
 ```
 
-## What's Included
+## Features
 
 ### 1. **Automatic Instrumentation**
-- HTTP requests/responses
-- Database queries (SQLite)
-- Fastify framework hooks
+- ✅ HTTP requests/responses (method, url, status, timing)
+- ✅ Database queries via Prisma
+- ✅ Fastify framework hooks
+- ✅ Pino logger with trace context injection
+- ✅ Automatic error tracking
 
-### 2. **Structured Logging**
-- All logs include OpenTelemetry trace context:
-  - `trace_id`: Unique identifier for the entire request flow
-  - `span_id`: Unique identifier for this specific operation
-  - `trace_flags`: Sampling decision flags
+### 2. **Professional Audit Logging**
+Every log entry includes:
+- `trace_id`: Distributed trace identifier (correlate across microservices)
+- `span_id`: Specific operation identifier
+- `trace_flags`: Sampling decision
+- `audit.category`: Log category (authentication, user_profile, security, etc.)
+- `audit.action`: Specific action performed
+- `timestamp`: ISO 8601 timestamp
+- **Sensitive data automatically redacted** (passwords, tokens, secrets)
 
-### 3. **Log Correlation**
-- Logs are automatically correlated with traces
-- Easy to follow request flow across services
+### 3. **Audit Categories**
+
+#### Authentication Events
+```javascript
+fastify.audit.auth('signin_success', {
+  userId: user.id,
+  email: user.email,
+  ip: request.ip,
+  userAgent: request.headers['user-agent'],
+});
+```
+
+#### Security Events
+```javascript
+fastify.audit.security('signin_failed', {
+  email,
+  ip: request.ip,
+  reason: 'Invalid credentials',
+});
+```
+
+#### User Profile Operations
+```javascript
+fastify.audit.user('profile_update', {
+  userId: user.id,
+  fields: ['name', 'email'],
+});
+```
+
+#### Database Operations
+```javascript
+fastify.audit.database('user_created', {
+  userId: newUser.id,
+  table: 'users',
+});
+```
+
+#### Access Control
+```javascript
+fastify.audit.access('permission_denied', {
+  userId: user.id,
+  resource: '/admin/users',
+  reason: 'Insufficient permissions',
+});
+```
+
+### 4. **Automatic Request/Response Logging**
+The audit plugin automatically logs:
+- All incoming requests (method, url, headers, ip)
+- All responses (status code, response time)
+- All errors with full context
+
+### 5. **Sensitive Data Protection**
+The following fields are **automatically redacted**:
+- password, passwordConfirm, currentPassword, newPassword
+- token, accessToken, refreshToken, jwt
+- secret, apiKey, authorization, cookie
+- sessionId, ssn, creditCard, cvv
 
 ## Configuration
 
@@ -33,104 +98,127 @@ Application → OpenTelemetry SDK → OTLP Exporter → Loki (via OTLP) → Graf
 # Enable OpenTelemetry + Loki integration
 LOKI_ENABLED=true
 
-# Loki endpoint (OpenTelemetry will use OTLP protocol)
+# Loki endpoint for OTLP
 LOKI_URL=http://localhost:3101
 ```
 
-### Loki Configuration
-The Loki instance is configured to receive logs via OTLP protocol on port **4318**.
-
+### Loki Configuration (infra/loki-config.yaml)
 ```yaml
 distributor:
   otlp:
-    enabled: true
+    enabled: true  # Enable OTLP receiver
+
+limits_config:
+  allow_structured_metadata: true
+  otlp_config:
+    resource_attributes:
+      ignore_defaults: false
 ```
 
 ## Running the Application
 
-### Development Mode
+### Start Infrastructure
+```bash
+cd infra
+podman compose up -d
+```
+
+This starts:
+- **Loki** on port 3101 (HTTP) and 4318 (OTLP)
+- **Grafana** on port 3001
+
+### Start Application
 ```bash
 npm run dev
 ```
-This will automatically:
-1. Initialize OpenTelemetry (first import in `src/server.js`)
-2. Start auto-instrumentation for HTTP, etc.
-3. Send logs to Loki via OTLP
 
-### Production Mode
-```bash
-npm start
+You should see:
 ```
-
-**Note:** OpenTelemetry is initialized directly in the code (at the top of `src/server.js`), so it works with any Node.js version >= 18.15.0.
-
+🚀 Initializing OpenTelemetry for professional audit logging...
+✅ OpenTelemetry initialized successfully
+📡 Sending logs to: http://localhost:3101/otlp/v1/logs
+📡 Sending traces to: http://localhost:3101/otlp/v1/traces
+✅ Audit logging plugin registered
+```
 
 ## Grafana Queries
 
-### 1. View All Logs with Trace Context
+### 1. View All Audit Logs
 ```logql
-{application="fastify-auth"}
+{application="fastify-auth"} | json | line_format "{{.level}} | {{.audit_category}} | {{.audit_action}}"
 ```
 
-### 2. Find All Logs for a Specific Trace
+### 2. Authentication Events Only
 ```logql
-{application="fastify-auth"} | json | trace_id="<YOUR_TRACE_ID>"
+{application="fastify-auth"} | json | audit_category="authentication"
 ```
 
-### 3. View Only Error Logs
+### 3. Failed Login Attempts
 ```logql
-{application="fastify-auth", level="error"}
+{application="fastify-auth"} | json | audit_category="security" | audit_event="signin_failed"
 ```
 
-### 4. Count Requests per Minute
+### 4. All Actions by Specific User
 ```logql
-sum(rate({application="fastify-auth"}[1m]))
+{application="fastify-auth"} | json | audit_userId="<USER_ID>"
 ```
 
-### 5. Average Response Time
+### 5. All Logs for a Specific Request (via Trace ID)
 ```logql
-avg_over_time({application="fastify-auth"} | json | unwrap responseTime [5m])
+{application="fastify-auth"} | json | trace_id="<TRACE_ID>"
 ```
 
-## Benefits of OpenTelemetry
+### 6. API Response Times (P95)
+```logql
+quantile_over_time(0.95, 
+  {application="fastify-auth"} 
+  | json 
+  | audit_category="api_response" 
+  | unwrap audit_responseTime [5m]
+)
+```
 
-### 1. **Standardization**
-- Industry-standard format (OTLP)
-- Works with any OTel-compatible backend
-- Easy to switch between Loki, Datadog, New Relic, etc.
+### 7. Error Rate per Minute
+```logql
+sum(rate({application="fastify-auth", level="error"}[1m]))
+```
 
-### 2. **Trace Correlation**
-- Every log entry includes trace context
-- Follow requests across multiple services
-- Debug distributed systems easily
+### 8. Top 10 Slowest Endpoints
+```logql
+topk(10, 
+  avg_over_time(
+    {application="fastify-auth"} 
+    | json 
+    | audit_category="api_response" 
+    | unwrap audit_responseTime [5m]
+  ) by (audit_url)
+)
+```
 
-### 3. **Performance Insights**
-- Automatic instrumentation captures timing data
-- Analyze slow requests
-- Identify bottlenecks
+## Custom Spans for Business Logic
 
-### 4. **Automatic Context**
-- Request ID, trace ID, span ID added automatically
-- No manual logging infrastructure needed
+Add custom tracing to your business logic:
 
-## Extending OpenTelemetry
-
-### Add Custom Spans
 ```javascript
 import { trace } from '@opentelemetry/api';
 
-const tracer = trace.getTracer('my-service');
+const tracer = trace.getTracer('fastify-auth');
 
-async function myFunction() {
-  const span = tracer.startSpan('my-operation');
+async function complexOperation(userId) {
+  const span = tracer.startSpan('complex_user_operation');
   
   try {
-    // Your code here
     span.setAttribute('user.id', userId);
-    span.setAttribute('operation.type', 'database');
+    span.setAttribute('operation.type', 'business_logic');
     
+    // Your business logic here
+    const result = await doSomething();
+    
+    span.setAttribute('operation.result', 'success');
+    return result;
   } catch (error) {
     span.recordException(error);
+    span.setAttribute('operation.result', 'failure');
     throw error;
   } finally {
     span.end();
@@ -138,40 +226,132 @@ async function myFunction() {
 }
 ```
 
-### Add Custom Attributes to Logs
+## Compliance & Security Benefits
+
+### 1. **Audit Trail**
+- Complete log of all authentication events
+- Track all data access and modifications
+- Identify unauthorized access attempts
+
+### 2. **Incident Response**
+- Trace requests across the entire stack
+- Correlate logs with specific user actions
+- Quick root cause analysis
+
+### 3. **Performance Monitoring**
+- Identify slow endpoints automatically
+- Track response times over time
+- Monitor error rates in real-time
+
+### 4. **Compliance (GDPR, SOC2, HIPAA)**
+- Sensitive data automatically filtered
+- Complete audit trail of data access
+- Retention policies configurable in Loki
+
+## Extending the Audit Logger
+
+### Add New Audit Category
+Edit `src/lib/audit-logger.js`:
+
 ```javascript
-fastify.log.info({
-  msg: 'User registered',
-  userId: user.id,
-  email: user.email,
-  // OpenTelemetry will automatically add trace context
-});
+export class AuditLogger {
+  // ... existing methods ...
+  
+  payment(action, details) {
+    const traceContext = getTraceContext();
+    const sanitized = sanitizeData(details);
+
+    this.logger.info({
+      ...traceContext,
+      audit: {
+        category: 'payment',
+        action,
+        ...sanitized,
+        timestamp: new Date().toISOString(),
+      },
+    }, `PAYMENT: ${action}`);
+  }
+}
+```
+
+### Add Custom Sensitive Fields
+Edit `SENSITIVE_FIELDS` in `src/lib/audit-logger.js`:
+
+```javascript
+const SENSITIVE_FIELDS = new Set([
+  // ... existing fields ...
+  'bankAccount',
+  'routingNumber',
+  'taxId',
+]);
 ```
 
 ## Troubleshooting
 
 ### Logs Not Appearing in Loki
-1. Check if `LOKI_ENABLED=true` in `.env`
-2. Verify Loki is running: `podman ps`
-3. Check Loki logs: `podman logs infra_loki_1`
+1. Check `LOKI_ENABLED=true` in `.env`
+2. Verify Loki is running:
+   ```bash
+   podman ps | grep loki
+   ```
+3. Check Loki logs:
+   ```bash
+   podman logs infra_loki_1
+   ```
 4. Test OTLP endpoint:
    ```bash
-   curl http://localhost:4318/v1/logs
+   curl http://localhost:3101/otlp/v1/logs
    ```
 
 ### No Trace Context in Logs
-1. Make sure you're using `npm run dev` (not `dev:simple`)
-2. Check that OTel initialized successfully (check console on startup)
-3. Verify `trace_id` appears in console logs
+1. Verify OpenTelemetry initialized successfully (check console)
+2. Ensure `initializeOpenTelemetry()` is called **first** in `server.js`
+3. Check that logs include `trace_id` field
 
-### Performance Issues
-1. Adjust batch processor settings in `src/configs/otel.js`:
+### Performance Impact
+OpenTelemetry has minimal overhead (~1-3% CPU). To optimize:
+
+1. Adjust batch processor in `src/configs/otel.js`:
    ```javascript
-   scheduledDelayMillis: 10000, // Increase to 10 seconds
-   maxQueueSize: 50,            // Reduce queue size
+   scheduledDelayMillis: 10000,  // Export every 10 seconds instead of 5
+   maxQueueSize: 500,            // Reduce queue size
    ```
+
+2. Disable verbose instrumentations:
+   ```javascript
+   '@opentelemetry/instrumentation-dns': { enabled: false },
+   '@opentelemetry/instrumentation-net': { enabled: false },
+   ```
+
+## Best Practices
+
+1. **Always use the audit logger for sensitive operations**
+   ```javascript
+   fastify.audit.auth('action', details);
+   ```
+
+2. **Never log sensitive data directly**
+   ```javascript
+   // ❌ BAD
+   fastify.log.info({ password: user.password });
+   
+   // ✅ GOOD
+   fastify.audit.auth('action', { userId: user.id });
+   ```
+
+3. **Use custom spans for complex operations**
+   ```javascript
+   const span = tracer.startSpan('operation_name');
+   // ... do work ...
+   span.end();
+   ```
+
+4. **Query by trace_id for debugging**
+   - Get trace_id from application logs
+   - Search in Grafana: `| trace_id="<ID>"`
 
 ## References
 - [OpenTelemetry Documentation](https://opentelemetry.io/docs/)
 - [Loki OTLP Documentation](https://grafana.com/docs/loki/latest/send-data/otel/)
 - [OpenTelemetry JavaScript](https://opentelemetry.io/docs/languages/js/)
+- [Grafana LogQL](https://grafana.com/docs/loki/latest/query/)

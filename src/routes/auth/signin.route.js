@@ -25,35 +25,55 @@ export default async function signinRoute(fastify, options) {
   }, async (request, reply) => {
     const { email, password } = request.body;
     
-    const user = await signin(email, password);
-    
-    // Create session and tokens
-    const { accessToken, refreshToken } = await createAuthSession(user, fastify.jwt);
-    
-    // Set cookies
-    reply.setCookie('token', accessToken, {
-      httpOnly: true,
-      secure: !config.isDev,
-      sameSite: 'strict',
-      maxAge: 15 * 60 // 15 minutes
-    });
+    try {
+      const user = await signin(email, password);
+      
+      // Create session and tokens
+      const { accessToken, refreshToken } = await createAuthSession(user, fastify.jwt);
+      
+      // Set cookies
+      reply.setCookie('token', accessToken, {
+        httpOnly: true,
+        secure: !config.isDev,
+        sameSite: 'strict',
+        maxAge: 15 * 60 // 15 minutes
+      });
 
-    reply.setCookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: !config.isDev,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 // 7 days
-    });
+      reply.setCookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: !config.isDev,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 // 7 days
+      });
 
-    fastify.log.info(`User logged in: ${email}`);
-
-    return reply.send({ 
-      message: 'Login successful',
-      user: {
-        id: user.id,
+      // Audit log: Successful signin
+      fastify.audit.auth('signin_success', {
+        userId: user.id,
         email: user.email,
-        name: user.name
-      }
-    });
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+      });
+
+      fastify.log.info(`User logged in: ${email}`);
+
+      return reply.send({ 
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        }
+      });
+    } catch (error) {
+      // Audit log: Failed signin attempt
+      fastify.audit.security('signin_failed', {
+        email,
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+        reason: error.message,
+      });
+      
+      throw error;
+    }
   });
 }
