@@ -1,4 +1,8 @@
 // src/server.js
+// OpenTelemetry must be initialized FIRST, before any other imports
+import { initializeOpenTelemetry } from './configs/otel.js';
+initializeOpenTelemetry();
+
 // Install dependencies: npm install
 // Run dev mode: npm run dev
 // Run production: npm start
@@ -12,19 +16,11 @@ import bcrypt from 'bcrypt';
 // import { promisify } from 'util';
 import { mkdir } from 'fs/promises';
 import { dirname } from 'path';
-import { config } from './configs.js';
+import { config } from './configs/variables.js';
+import { getLoggerConfig } from './configs/logger.js';
 
 const fastify = Fastify({ 
-  logger: {
-    level: config.server.logLevel,
-    transport: config.isDev ? {
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname'
-      }
-    } : undefined
-  }
+  logger: getLoggerConfig()
 });
 
 // Register plugins

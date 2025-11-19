@@ -1,0 +1,52 @@
+# Podman-specific docker-compose configuration
+# Use with: podman compose -f docker-compose.yml -f docker-compose.podman.yml up
+
+version: '3.8'
+
+services:
+  # Loki for logs - Podman rootless compatible
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "3101:3101"  # Loki HTTP API
+      - "4318:4318"  # OTLP HTTP receiver
+    volumes:
+      - ./loki-config.yaml:/etc/loki/loki-config.yaml:ro,Z
+    networks:
+      - fastify-app-network
+    user: "0:0"  # Run as root inside container to avoid permission issues
+
+  # Grafana for visualization - Podman compatible
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"  # Changed to 3001 to avoid conflict with app
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Default admin password
+    networks:
+      - fastify-app-network
+    depends_on:
+      - loki
+
+  # # Prometheus for metrics - Podman compatible
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #   volumes:
+  #     - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro,Z
+  #     - prometheus-data:/prometheus:Z
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - fastify-app-network
+  #   user: "0:0"
+
+volumes:
+  loki-data:
+
+networks:
+  fastify-app-network:
+    driver: bridge

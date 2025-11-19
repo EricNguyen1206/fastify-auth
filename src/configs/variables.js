@@ -32,6 +32,11 @@ export const config = {
     type: process.env.DB_TYPE || 'sqlite', // 'sqlite' or 'sqlitecloud'
     path: process.env.DB_PATH || join(__dirname, '../data/app.db'),
     connectionString: process.env.DB_CONNECTION_STRING || null
+  },
+  
+  loki: {
+    enabled: process.env.LOKI_ENABLED === 'true',
+    url: process.env.LOKI_URL || 'http://localhost:3101'
   }
 };
 

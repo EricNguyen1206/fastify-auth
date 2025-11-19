@@ -1,0 +1,41 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3101 # Loki default port
+  grpc_listen_port: 9095
+
+# Storage configuration
+common:
+  path_prefix: /loki # Base path for Loki API
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks  # Directory for chunk storage
+      rules_directory: /loki/rules    # Directory for rules storage
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1          # Address of this Loki instance
+    kvstore:
+      store: inmemory                 # In-memory key-value store for ring
+
+# Schema configuration
+schema_config:
+  configs:
+    - from: 2020-10-24 # Start date for this schema
+      store: tsdb               # Use TSDB for storage
+      object_store: filesystem  # Use filesystem for object storage
+      schema: v13               # Schema version
+      index:
+        prefix: index_          # Index prefix
+        period: 24h             # Index period
+
+
+# Distributor configuration for OTLP
+distributor:
+  otlp:
+    enabled: true
+
+# Limits configuration
+limits_config:
+  allow_structured_metadata: true   # Enable structured metadata for OTLP
+  max_query_series: 100000           # Maximum number of series per query
+  max_query_parallelism: 32          # Maximum parallelism for queries
