@@ -13,7 +13,7 @@ export const config = {
   isDev: process.env.NODE_ENV !== 'production',
   
   server: {
-    port: parseInt(process.env.PORT, 10) || 3000,
+    port: parseInt(process.env.PORT, 10) || 8000,
     host: process.env.HOST || '0.0.0.0',
     logLevel: process.env.LOG_LEVEL || 'info'
   },

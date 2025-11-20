@@ -26,13 +26,13 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
 
 // Generate random user data
 function generateUser() {
   const id = Math.random().toString(36).substring(7);
   return {
-    username: `user_${id}`,
+    name: `user_${id}`,
     email: `user_${id}@test.com`,
     password: `pass_${id}`,
   };
@@ -61,14 +61,14 @@ export default function () {
       },
     };
 
-    const res = http.post(`${BASE_URL}/auth/register`, payload, params);
+    const res = http.post(`${BASE_URL}/auth/signup`, payload, params);
     
     registerAttempts.add(1);
     
     check(res, {
       'registration status is 200': (r) => r.status === 200,
       'registration returns success': (r) => r.json('success') === true,
-      'registration returns user': (r) => r.json('user.username') === user.username,
+      'registration returns user': (r) => r.json('user.name') === user.name,
     });
   });
 
@@ -78,7 +78,7 @@ export default function () {
   group('User Login', () => {
     const user = generateUser();
     const payload = JSON.stringify({
-      username: user.username,
+      email: user.email,
       password: user.password,
     });
     const params = {
@@ -88,7 +88,7 @@ export default function () {
     };
 
     const start = new Date();
-    const res = http.post(`${BASE_URL}/auth/login`, payload, params);
+    const res = http.post(`${BASE_URL}/auth/signin`, payload, params);
     const duration = new Date() - start;
 
     loginAttempts.add(1);
@@ -97,7 +97,7 @@ export default function () {
     const checkResult = check(res, {
       'login status is 200': (r) => r.status === 200,
       'login returns token': (r) => r.json('token') !== undefined,
-      'login returns user': (r) => r.json('user.username') === user.username,
+      'login returns user': (r) => r.json('user.name') === user.name,
     });
 
     if (!checkResult) {
@@ -110,7 +110,8 @@ export default function () {
   // Scenario 4: Missing credentials (error scenario)
   group('Invalid Login', () => {
     const payload = JSON.stringify({
-      username: 'test',
+      email: 'test',
+      password: 'test',
     });
     const params = {
       headers: {
@@ -118,7 +119,7 @@ export default function () {
       },
     };
 
-    const res = http.post(`${BASE_URL}/auth/login`, payload, params);
+    const res = http.post(`${BASE_URL}/auth/signin`, payload, params);
     
     check(res, {
       'invalid login returns 400': (r) => r.status === 400,

@@ -4,11 +4,6 @@ server:
   http_listen_port: 3101 # Loki default port
   grpc_listen_port: 9095
 
-# Distributor configuration for OTLP (OpenTelemetry)
-distributor:
-  otlp:
-    enabled: true
-
 # Storage configuration
 common:
   path_prefix: /loki # Base path for Loki API

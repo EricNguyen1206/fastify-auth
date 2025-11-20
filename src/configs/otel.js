@@ -6,14 +6,16 @@ import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { LoggerProvider, BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 // Fix for CommonJS compatibility
 import resourcesPkg from '@opentelemetry/resources';
 const { resourceFromAttributes } = resourcesPkg;
 import semconvPkg from '@opentelemetry/semantic-conventions';
 const { 
-  SEMRESATTRS_SERVICE_NAME, 
-  SEMRESATTRS_SERVICE_VERSION,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT 
+  ATTR_SERVICE_NAME, 
+  ATTR_SERVICE_VERSION,
+  ATTR_DEPLOYMENT_ENVIRONMENT 
 } = semconvPkg;
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
@@ -41,9 +43,9 @@ export function initializeOpenTelemetry() {
 
     // Define service resource with metadata
     const resource = resourceFromAttributes({
-      [SEMRESATTRS_SERVICE_NAME]: 'fastify-auth',
-      [SEMRESATTRS_SERVICE_VERSION]: '1.0.0',
-      [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: config.env,
+      [ATTR_SERVICE_NAME]: 'fastify-auth',
+      [ATTR_SERVICE_VERSION]: '1.0.0',
+      [ATTR_DEPLOYMENT_ENVIRONMENT]: config.env,
       'service.namespace': 'authentication',
       'service.instance.id': process.env.HOSTNAME || 'local-instance'
     });
@@ -58,13 +60,31 @@ export function initializeOpenTelemetry() {
       timeoutMillis: 15000,
     });
 
-    // Configure OTLP Trace Exporter to Loki (Tempo if available)
+    // Configure OTLP Trace Exporter to Tempo
+    const tempoUrl = process.env.TEMPO_URL || 'http://localhost:3200';
     const traceExporter = new OTLPTraceExporter({
-      url: `${config.loki.url}/otlp/v1/traces`,
+      url: `${tempoUrl}/v1/traces`,
       headers: {
         'Content-Type': 'application/json',
       },
       timeoutMillis: 15000,
+    });
+
+    // Configure Prometheus Metrics Exporter
+    const prometheusExporter = new PrometheusExporter(
+      {
+        port: 9464, // Prometheus metrics endpoint port
+        endpoint: '/metrics',
+      },
+      () => {
+        console.log('📊 Prometheus metrics server running on http://localhost:9464/metrics');
+      }
+    );
+
+    // Create MeterProvider with Prometheus exporter
+    const meterProvider = new MeterProvider({
+      resource,
+      readers: [prometheusExporter],
     });
 
     // Initialize NodeSDK with comprehensive auto-instrumentation
@@ -107,7 +127,8 @@ export function initializeOpenTelemetry() {
 
     console.log('✅ OpenTelemetry initialized successfully');
     console.log(`📡 Sending logs to: ${config.loki.url}/otlp/v1/logs`);
-    console.log(`📡 Sending traces to: ${config.loki.url}/otlp/v1/traces`);
+    console.log(`📡 Sending traces to: ${tempoUrl}/v1/traces`);
+    console.log(`📊 Exposing metrics at: http://localhost:9464/metrics`);
 
     // Graceful shutdown on process termination
     const shutdown = async () => {

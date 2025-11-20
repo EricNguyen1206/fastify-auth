@@ -24,11 +24,11 @@ export default function () {
 
   // Test login endpoint
   const loginPayload = JSON.stringify({
-    username: 'testuser',
+    email: 'testuser',
     password: 'testpass',
   });
 
-  const loginRes = http.post(`${BASE_URL}/auth/login`, loginPayload, {
+  const loginRes = http.post(`${BASE_URL}/auth/signin`, loginPayload, {
     headers: { 'Content-Type': 'application/json' },
   });
 

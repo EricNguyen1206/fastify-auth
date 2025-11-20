@@ -21,7 +21,8 @@ const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:3001';
 function generateUser() {
   const id = Math.random().toString(36).substring(7);
   return {
-    username: `stress_user_${id}`,
+    name: `stress_user_${id}`,
+    email: `stress_user_${id}@test.com`,
     password: `pass_${id}`,
   };
 }
@@ -29,12 +30,15 @@ function generateUser() {
 export default function () {
   const user = generateUser();
   
-  const loginPayload = JSON.stringify(user);
+  const loginPayload = JSON.stringify({
+    email: user.email,
+    password: user.password,
+  });
   const params = {
     headers: { 'Content-Type': 'application/json' },
   };
 
-  const res = http.post(`${BASE_URL}/auth/login`, loginPayload, params);
+  const res = http.post(`${BASE_URL}/auth/signin`, loginPayload, params);
   
   check(res, {
     'status is 200 or 400': (r) => r.status === 200 || r.status === 400,

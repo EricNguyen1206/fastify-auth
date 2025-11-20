@@ -44,10 +44,10 @@ const start = async () => {
   try {
     // Register plugins
     console.log('Registering plugins...');
-    await fastify.register(databasePlugin);
-    await fastify.register(auditPlugin); // Register audit plugin early
-    await fastify.register(authPlugin);
-    await fastify.register(rateLimitPlugin);
+    await fastify.register(databasePlugin);   // SQLite database connection
+    await fastify.register(auditPlugin);      // Otel audit plugin
+    await fastify.register(authPlugin);       // Fastify authentication custom plugin with cookie + JWT + auth middleware
+    await fastify.register(rateLimitPlugin);  // Fastify rate limit plugin
     
     // Register routes
     await fastify.register(authRoutes);

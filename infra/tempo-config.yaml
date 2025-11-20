@@ -1,0 +1,72 @@
+# Tempo Configuration for Distributed Tracing
+# Receives traces via OTLP and stores them for Grafana visualization
+
+server:
+  http_listen_port: 3200 # Tempo HTTP API port
+
+# Distributor configuration
+distributor:
+  receivers:
+    # OTLP receiver for OpenTelemetry traces
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318 # OTLP HTTP endpoint
+        grpc:
+          endpoint: 0.0.0.0:4317 # OTLP gRPC endpoint
+    # Jaeger receiver (optional, for compatibility)
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+        grpc:
+          endpoint: 0.0.0.0:14250
+
+# Ingester configuration
+ingester:
+  trace_idle_period: 10s # How long to wait before flushing a trace
+  max_block_bytes: 1_000_000 # Maximum size of a block
+  max_block_duration: 5m # Maximum time to keep a block open
+
+# Compactor configuration
+compactor:
+  compaction:
+    block_retention: 1h # Retain blocks for 1 hour in development
+
+# Storage configuration - using local filesystem for development
+storage:
+  trace:
+    backend: local # Use local filesystem
+    local:
+      path: /tmp/tempo/traces # Path to store traces
+    wal:
+      path: /tmp/tempo/wal # Write-ahead log path
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+# Query frontend configuration (optional, for better query performance)
+query_frontend:
+  search:
+    duration_slo: 5s
+    throughput_bytes_slo: 1.073741824e+09
+  trace_by_id:
+    duration_slo: 5s
+
+# Metrics generator (optional, generate metrics from traces)
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: fastify-auth-local
+  storage:
+    path: /tmp/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+
+# Overrides configuration
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics] # Generate service graphs and span metrics

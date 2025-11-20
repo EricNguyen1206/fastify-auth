@@ -8,7 +8,7 @@ export const options = {
 };
 
 export default function () {
-  const url = 'http://localhost:3000/auth/signin';
+  const url = 'http://localhost:8000/auth/signin';
   const payload = JSON.stringify({
     email: 'test@rate-limit.com',
     password: 'password123',

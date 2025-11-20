@@ -7,7 +7,12 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "pm2": "pm2 start ecosystem.config.js"
+    "pm2": "pm2 start ecosystem.config.js",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --detectOpenHandles --forceExit",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --watch",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --coverage --detectOpenHandles --forceExit",
+    "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern=unit --detectOpenHandles --forceExit",
+    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern=integration --detectOpenHandles --forceExit"
   },
   "keywords": [
     "fastify",
@@ -25,6 +30,7 @@
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.67.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.208.0",
+    "@opentelemetry/exporter-prometheus": "^0.208.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.208.0",
     "@opentelemetry/instrumentation-pino": "^0.55.0",
     "@opentelemetry/resources": "^2.2.0",
@@ -44,6 +50,10 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
+    "cross-env": "^10.1.0",
+    "jest": "^30.2.0",
     "nodemon": "^3.0.1",
     "prisma": "^5.10.0"
   },
