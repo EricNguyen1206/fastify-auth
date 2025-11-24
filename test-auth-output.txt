@@ -1,0 +1,73 @@
+﻿
+> fastify-auth@1.0.0 test
+> cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --detectOpenHandles --forceExit src/tests/unit/services/auth.service.test.js
+
+npm : FAIL src/tests/unit/servi
+ces/auth.service.test.js
+At line:1 char:1
++ npm test -- src/tests/unit/se
+rvices/auth.service.test.js 
+2>&1 | Out-F ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo          :  
+   NotSpecified: (FAIL src/te  
+  sts/...service.test.js:Str   
+ ing) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+  笳・Test suite failed to run
+
+    SyntaxError: The requested 
+module '../repositories/session
+.repository.js' does not 
+provide an export named 
+'deleteUserSessions'
+
+    [0m [90m 48 |[39m 
+[90m// Import service after 
+mocks[39m
+     [90m 49 |[39m 
+[36mconst[39m { 
+signup[33m,[39m 
+signin[33m,[39m 
+createAuthSession[33m,[39m 
+refreshAccessToken[33m,[39m 
+signout } [33m=[39m
+    [31m[1m>[22m[39m[90m 
+50 |[39m   [36mawait[39m [3
+6mimport[39m([32m"../../../se
+rvices/auth.service.js"[39m)[
+33m;[39m
+     [90m    |[39m   
+[31m[1m^[22m[39m
+     [90m 51 |[39m
+     [90m 52 |[39m [90m// 
+Import test helpers[39m
+     [90m 53 |[39m 
+[36mimport[39m {[0m
+
+      at 
+Runtime.linkAndEvaluateModule (
+node_modules/jest-runtime/build
+/index.js:684:5)
+      at src/tests/unit/service
+s/auth.service.test.js:50:3
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.249 s
+Ran all test suites matching sr
+c/tests/unit/services/auth.serv
+ice.test.js.
+(node:27136) 
+ExperimentalWarning: VM 
+Modules is an experimental 
+feature and might change at 
+any time
+(Use `node --trace-warnings 
+...` to show where the warning 
+was created)

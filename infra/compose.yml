@@ -1,29 +1,63 @@
 # Podman-specific docker-compose configuration
 # Use with: podman compose -f docker-compose.yml -f docker-compose.podman.yml up
 
-version: '3.8'
+version: "3.8"
 
 services:
-  # Loki for logs - Podman rootless compatible
+  # Fastify Authentication Application
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - LOKI_URL=http://loki:3101
+      - TEMPO_URL=http://tempo:3200
+    networks:
+      - fastify-app-network
+    depends_on:
+      - loki
+      - tempo
+    restart: unless-stopped
+
+  # K6 Load Testing
+  k6:
+    image: grafana/k6:latest
+    networks:
+      - fastify-app-network
+    depends_on:
+      - app
+    volumes:
+      - ../src/tests/k6:/scripts:ro,Z
+    command: ["run", "/scripts/scenarios/load-test.js"]
+    environment:
+      - K6_OUT=influxdb=http://mimir:9009
+
+  # Loki for logs
   loki:
     image: grafana/loki:latest
     command: -config.file=/etc/loki/loki-config.yaml
     ports:
-      - "3101:3101"  # Loki HTTP API
-      - "4318:4318"  # OTLP HTTP receiver
+      - "3101:3101"
+      - "4318:4318"
     volumes:
       - ./loki-config.yaml:/etc/loki/loki-config.yaml:ro,Z
     networks:
       - fastify-app-network
-    user: "0:0"  # Run as root inside container to avoid permission issues
+    user: "0:0"
 
-  # Grafana for visualization - Podman compatible
+  # Grafana for visualization
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3001:3000"  # Changed to 3001 to avoid conflict with app
+      - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin # Default admin password
+      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
     volumes:
       - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro,Z
@@ -32,54 +66,95 @@ services:
       - fastify-app-network
     depends_on:
       - loki
-      - prometheus
+      - mimir
       - tempo
 
-  # Prometheus for metrics - Podman compatible
-  prometheus:
-    image: prom/prometheus:latest
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-lifecycle'
+  # Mimir for metrics (Scalable replacement for Prometheus)
+  mimir:
+    image: grafana/mimir:latest
+    command: ["-config.file=/etc/mimir.yaml"]
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro,Z
-      - prometheus-data:/prometheus:Z
+      - ./mimir.yaml:/etc/mimir.yaml:ro,Z
     ports:
-      - "9090:9090"
+      - "9009:9009"
     networks:
       - fastify-app-network
+    depends_on:
+      - minio
     user: "0:0"
+
+  # MinIO for Mimir storage
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=supersecret
+    volumes:
+      - minio-data:/data:Z
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - fastify-app-network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 3
 
-  # Tempo for distributed tracing - Podman compatible
+  create-buckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minio supersecret;
+      /usr/bin/mc mb myminio/mimir-data;
+      /usr/bin/mc mb myminio/mimir-blocks;
+      /usr/bin/mc mb myminio/mimir-ruler;
+      exit 0;
+      "
+    networks:
+      - fastify-app-network
+
+  # Grafana Alloy (Agent) for scraping metrics
+  alloy:
+    image: grafana/alloy:latest
+    command:
+      [
+        "run",
+        "--server.http.listen-addr=0.0.0.0:12345",
+        "/etc/alloy/config.river",
+      ]
+    volumes:
+      - ./alloy-config.river:/etc/alloy/config.river:ro,Z
+    ports:
+      - "12345:12345"
+    networks:
+      - fastify-app-network
+    depends_on:
+      - mimir
+
+  # Tempo for distributed tracing
   tempo:
     image: grafana/tempo:latest
-    command: [ "-config.file=/etc/tempo/tempo.yaml" ]
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
     volumes:
       - ./tempo-config.yaml:/etc/tempo/tempo.yaml:ro,Z
       - tempo-data:/tmp/tempo:Z
     ports:
-      - "3200:3200"  # Tempo HTTP API
-      - "4317:4317"  # OTLP gRPC
-      - "4318:4318"  # OTLP HTTP (shared with Loki, but different paths)
-      - "14268:14268" # Jaeger ingest
+      - "3200:3200"
+      - "4317:4317"
+      - "14268:14268"
     networks:
       - fastify-app-network
     user: "0:0"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3200/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   loki-data:
-  prometheus-data:
+  minio-data:
   tempo-data:
 
 networks:

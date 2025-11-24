@@ -1,0 +1,13 @@
+# .dockerignore
+node_modules
+npm-debug.log
+coverage
+.env
+.git
+.gitignore
+*.md
+test-*.txt
+*.log
+data
+infra
+.github

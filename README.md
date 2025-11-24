@@ -51,7 +51,7 @@ This project is a Fastify-based authentication system that includes user registr
 
 - Loki for logging
 - Grafana for visualization
-- Prometheus for metrics
+- Mimir for scalable metrics
 - Tempo for tracing
 
 ## Testing

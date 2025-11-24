@@ -1,0 +1,57 @@
+
+# Mimir Configuration for Monolithic Mode
+multitenancy_enabled: false
+
+common:
+  storage:
+    backend: s3
+    s3:
+      endpoint: minio:9000
+      access_key_id: minio
+      secret_access_key: supersecret
+      insecure: true
+      bucket_name: mimir-data
+
+blocks_storage:
+  backend: s3
+  s3:
+    bucket_name: mimir-blocks
+  tsdb:
+    dir: /tmp/mimir/tsdb
+
+compactor:
+  data_dir: /tmp/mimir/compactor
+  sharding_ring:
+    kvstore:
+      store: memberlist
+
+distributor:
+  ring:
+    kvstore:
+      store: memberlist
+
+ingester:
+  ring:
+    kvstore:
+      store: memberlist
+    replication_factor: 1
+
+ruler:
+  rule_path: /tmp/mimir/rules
+  alertmanager_url: http://alertmanager:9093
+
+ruler_storage:
+  backend: s3
+  s3:
+    bucket_name: mimir-ruler
+
+store_gateway:
+  sharding_ring:
+    replication_factor: 1
+
+server:
+  http_listen_port: 9009
+  grpc_listen_port: 9095
+
+memberlist:
+  join_members: [ mimir ]

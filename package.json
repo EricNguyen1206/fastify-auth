@@ -7,24 +7,36 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "build": "prisma generate && prisma db push && echo Build complete - Prisma client generated",
+    "postinstall": "prisma generate",
+    "prod": "cross-env NODE_ENV=production node src/server.js",
     "pm2": "pm2 start ecosystem.config.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --detectOpenHandles --forceExit",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --watch",
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --coverage --detectOpenHandles --forceExit",
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern=unit --detectOpenHandles --forceExit",
-    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern=integration --detectOpenHandles --forceExit"
+    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern=integration --detectOpenHandles --forceExit",
+    "perf:load:npm": "cross-env PORT=8000 NODE_ENV=production node src/server.js & timeout /t 5 /nobreak > nul && k6 run src/tests/k6/scenarios/load-test.js",
+    "perf:stress:npm": "cross-env PORT=8000 NODE_ENV=production node src/server.js & timeout /t 5 /nobreak > nul && k6 run src/tests/k6/scenarios/stress-test.js",
+    "perf:load:pm2": "pm2 start ecosystem.config.js && timeout /t 5 /nobreak > nul && k6 run src/tests/k6/scenarios/load-test.js && pm2 delete fastify-auth",
+    "perf:stress:pm2": "pm2 start ecosystem.config.js && timeout /t 5 /nobreak > nul && k6 run src/tests/k6/scenarios/stress-test.js && pm2 delete fastify-auth"
   },
   "keywords": [
     "fastify",
     "nodejs",
     "authentication",
     "docker",
-    "grafana"
+    "grafana",
+    "prometheus",
+    "loki",
+    "tempo"
   ],
   "author": "ericnguyen1206",
   "license": "ISC",
   "dependencies": {
     "@fastify/cookie": "^9.1.0",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^11.1.1",
     "@fastify/jwt": "^7.2.2",
     "@fastify/rate-limit": "^10.3.0",
     "@opentelemetry/api": "^1.9.0",

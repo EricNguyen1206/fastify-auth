@@ -20,10 +20,10 @@ To execute the implementation plan efficiently, we will utilize 5 specialized AI
 
 ### 🤖 Agent B: Observability Architect
 *   **Role**: Site Reliability Engineering (SRE)
-*   **Skills**: OpenTelemetry, Loki, Grafana, Tempo, Prometheus, Docker Compose
+*   **Skills**: OpenTelemetry, Loki, Grafana, Tempo, Mimir, Docker Compose
 *   **Responsibility**:
-    *   Complete LGTM stack integration.
-    *   Configure Prometheus metrics and Tempo tracing.
+    *   Complete LGTM stack integration (Loki, Grafana, Tempo, Mimir).
+    *   Configure Mimir for scalable metrics and Tempo for tracing.
     *   Design Grafana dashboards.
 *   **Phase**: Phase 3 (4:30 PM - 6:00 PM)
 
@@ -70,7 +70,7 @@ The project will follow a sequential "Waterfall" pipeline to ensure stability, a
 
 ### Step 2: Observability (Agent B)
 1.  **Agent B**: Extend OpenTelemetry config (Metrics + Traces).
-2.  **Agent B**: Update `infra/compose.yml` (Add Prometheus, Tempo).
+2.  **Agent B**: Update `infra/compose.yml` (Add Mimir, Tempo).
 3.  **Agent B**: Create Grafana Dashboards.
 4.  **PM**: Verify LGTM stack is up and receiving data.
 
