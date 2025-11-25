@@ -9,3 +9,7 @@ yarn-error.log*
 .vscode/
 .env
 node_modules
+
+# Database files
+prisma/data/
+prisma/backups/

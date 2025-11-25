@@ -4,16 +4,10 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import {
-  LoggerProvider,
-  BatchLogRecordProcessor,
-} from "@opentelemetry/sdk-logs";
+import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
-import {
-  MeterProvider,
-  PeriodicExportingMetricReader,
-} from "@opentelemetry/sdk-metrics";
+import { MeterProvider } from "@opentelemetry/sdk-metrics";
 // Fix for CommonJS compatibility
 import resourcesPkg from "@opentelemetry/resources";
 const { resourceFromAttributes } = resourcesPkg;
@@ -157,9 +151,4 @@ export function initializeOpenTelemetry() {
     console.error("📝 Falling back to standard logging");
     return null;
   }
-  return {
-    traceId: spanContext.traceId,
-    spanId: spanContext.spanId,
-    traceFlags: spanContext.traceFlags,
-  };
 }

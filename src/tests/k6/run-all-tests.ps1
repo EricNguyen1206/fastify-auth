@@ -94,12 +94,9 @@ Write-Host "Results will be saved to: $resultsDir" -ForegroundColor Gray
 if ($runLoad) {
     Write-Host "`n======= LOAD TESTS (5 minutes each) =======" -ForegroundColor Magenta
     
-    # npm load test
-    Run-PerfTest -Runtime "npm" -Scenario "load-test" -Command "npm run perf:load:npm"
-    
     # pnpm load test (if pnpm is installed)
     if (Get-Command pnpm -ErrorAction SilentlyContinue) {
-        Run-PerfTest -Runtime "pnpm" -Scenario "load-test" -Command "cross-env PORT=8000 NODE_ENV=production pnpm start & timeout /t 5 /nobreak > nul && k6 run src/tests/k6/scenarios/load-test.js"
+        Run-PerfTest -Runtime "pnpm" -Scenario "load-test" -Command "npm run perf:load:pnpm"
     } else {
         Write-Host "⚠️  Skipping pnpm load test (pnpm not installed)" -ForegroundColor Yellow
     }
@@ -112,12 +109,9 @@ if ($runLoad) {
 if ($runStress) {
     Write-Host "`n======= STRESS TESTS (10 minutes each) =======" -ForegroundColor Magenta
     
-    # npm stress test
-    Run-PerfTest -Runtime "npm" -Scenario "stress-test" -Command "npm run perf:stress:npm"
-    
     # pnpm stress test (if pnpm is installed)
     if (Get-Command pnpm -ErrorAction SilentlyContinue) {
-        Run-PerfTest -Runtime "pnpm" -Scenario "stress-test" -Command "cross-env PORT=8000 NODE_ENV=production pnpm start & timeout /t 5 /nobreak > nul && k6 run src/tests/k6/scenarios/stress-test.js"
+        Run-PerfTest -Runtime "pnpm" -Scenario "stress-test" -Command "npm run perf:stress:pnpm"
     } else {
         Write-Host "⚠️  Skipping pnpm stress test (pnpm not installed)" -ForegroundColor Yellow
     }

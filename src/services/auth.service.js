@@ -1,7 +1,7 @@
 // src/services/auth.service.js
 // Auth service - business logic for authentication
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import {
   createUser,
   findUserByEmail,

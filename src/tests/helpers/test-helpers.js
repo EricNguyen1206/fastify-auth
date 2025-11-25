@@ -1,7 +1,7 @@
 // src/tests/helpers/test-helpers.js
 // Shared test utilities and helpers
 
-import { jest } from '@jest/globals';
+import { jest } from "@jest/globals";
 
 /**
  * Create a mock Prisma client with all required methods
@@ -31,10 +31,10 @@ export function createMockPrisma() {
 export function createTestUser(overrides = {}) {
   return {
     id: 1,
-    email: 'test@example.com',
-    name: 'Test User',
-    password: '$2b$10$abcdefghijklmnopqrstuvwxyz', // Mock bcrypt hash
-    createdAt: new Date('2024-01-01'),
+    email: "test@example.com",
+    name: "Test User",
+    password: "$2b$10$abcdefghijklmnopqrstuvwxyz", // Mock bcryptjs hash
+    createdAt: new Date("2024-01-01"),
     ...overrides,
   };
 }
@@ -49,7 +49,7 @@ export function createTestSession(overrides = {}) {
   return {
     id: 1,
     userId: 1,
-    refreshToken: 'test-refresh-token',
+    refreshToken: "test-refresh-token",
     expiresAt,
     createdAt: new Date(),
     ...overrides,
@@ -63,21 +63,21 @@ export function createMockJWT() {
   return {
     sign: jest.fn((payload, options) => {
       // Return a deterministic token based on payload
-      const tokenType = payload.type || 'access';
+      const tokenType = payload.type || "access";
       return `mock-${tokenType}-token-${payload.userId}`;
     }),
     verify: jest.fn((token) => {
       // Parse token and return payload
-      if (token.includes('mock-')) {
-        const parts = token.split('-');
+      if (token.includes("mock-")) {
+        const parts = token.split("-");
         const userId = parseInt(parts[parts.length - 1]);
         const type = parts[1];
         return {
           userId,
-          type: type === 'refresh' ? 'refresh' : undefined,
+          type: type === "refresh" ? "refresh" : undefined,
         };
       }
-      throw new Error('Invalid token');
+      throw new Error("Invalid token");
     }),
   };
 }

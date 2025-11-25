@@ -30,7 +30,7 @@ const mockConfig = {
 };
 
 // Mock modules
-jest.unstable_mockModule("bcrypt", () => ({
+jest.unstable_mockModule("bcryptjs", () => ({
   default: mockBcrypt,
 }));
 jest.unstable_mockModule(
@@ -101,7 +101,7 @@ describe("Auth Service - signup()", () => {
     expect(mockUserRepository.createUser).not.toHaveBeenCalled();
   });
 
-  it("should hash password with bcrypt salt rounds of 10", async () => {
+  it("should hash password with bcryptjs salt rounds of 10", async () => {
     const email = "test@example.com";
     const password = "mypassword";
     const name = "Test";
