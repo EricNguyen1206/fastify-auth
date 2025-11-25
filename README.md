@@ -1,13 +1,13 @@
 # Project Authentication with Fastify
 
-This project is a Fastify-based authentication system that includes user registration, login, and protected routes. It uses SQLite as the database and bcrypt for password hashing. The logging is configured with pino-pretty for development and pino-loki for production environments.
+This project is a Fastify-based authentication system that includes user registration, login, and protected routes. It uses **PostgreSQL** (Aiven Cloud) as the database and bcrypt for password hashing. The logging is configured with pino-pretty for development and pino-loki for production environments.
 
 ## Features
 
 - User Registration
 - User Login with JWT
 - Protected Routes
-- SQLite Database Integration
+- PostgreSQL Database Integration (Aiven Cloud)
 - Environment-based Logging Configuration
 
 ## Prerequisites
@@ -66,7 +66,7 @@ See [PRODUCTION.md](PRODUCTION.md) for detailed deployment guide.
 - **Horizontal Pod Autoscaler (HPA)**: Auto-scales based on CPU (70%) and Memory (80%)
 - **Min Replicas**: 1
 - **Max Replicas**: 5
-- **Database**: SQLiteCloud (cloud-hosted SQLite)
+- **Database**: PostgreSQL (Aiven Cloud)
 - **Observability**: Grafana Cloud (Loki, Prometheus, Tempo)
 
 See [Cloud Migration Overview](docs/cloud-migration-overview.md) for details.
@@ -89,6 +89,15 @@ See [Cloud Migration Overview](docs/cloud-migration-overview.md) for details.
 
 ## Observability Architecture
 
+**Cloud-Native Observability Stack** (Migrated to Grafana Cloud)
+
+- **Grafana Cloud Prometheus** - Metrics collection via remote write
+- **Grafana Cloud Loki** - Log aggregation (via Vector or direct push)
+- **Grafana Cloud Tempo** - Distributed tracing (via OpenTelemetry)
+- **Vector** - Optional lightweight log collector and forwarder
+- **Grafana Cloud** - Unified visualization dashboard
+
+**Local Development Stack** (Still supported)
 **Cloud-Native Observability Stack** (Migrated to Grafana Cloud)
 
 - **Grafana Cloud Prometheus** - Metrics collection via remote write
@@ -205,21 +214,29 @@ npm run perf:stress:pm2
 ### Database
 
 ```bash
+# Set your PostgreSQL connection string
+$env:DATABASE_URI="postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
+
+# Test database connection
+node scripts/test-db-connection.js
+
 # Generate Prisma client
-prisma generate
+npx prisma generate
 
-# Push schema changes to database
-prisma db push
+# Deploy migrations to database
+npx prisma migrate deploy
 
-# Backup database
-npm run db:backup
+# Push schema changes (for development)
+npx prisma db push
 
-# Backup database with compression
-npm run db:backup:compress
+# Open Prisma Studio (database GUI)
+npx prisma studio
 
-# Restore database from backup
-npm run db:restore
+# Reset database (WARNING: deletes all data)
+npx prisma migrate reset
 ```
+
+**See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for PostgreSQL setup and migration details.**
 
 ### Monitoring & Debugging
 

@@ -51,7 +51,7 @@ async function securityPlugin(fastify, options) {
     allowedHeaders: ["Content-Type", "Authorization"],
   });
 
-  fastify.log.info("✅ Security plugin registered (Helmet + CORS)");
+  fastify.log.info("✅・Security plugin registered (Helmet + CORS)");
 }
 
 export default fp(securityPlugin, {
