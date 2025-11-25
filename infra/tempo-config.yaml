@@ -31,7 +31,7 @@ ingester:
 # Compactor configuration
 compactor:
   compaction:
-    block_retention: 1h # Retain blocks for 1 hour in development
+    block_retention: 30m # Reduced retention for development
 
 # Storage configuration - using local filesystem for development
 storage:
@@ -52,21 +52,3 @@ query_frontend:
     throughput_bytes_slo: 1.073741824e+09
   trace_by_id:
     duration_slo: 5s
-
-# Metrics generator (optional, generate metrics from traces)
-metrics_generator:
-  registry:
-    external_labels:
-      source: tempo
-      cluster: fastify-auth-local
-  storage:
-    path: /tmp/tempo/generator/wal
-    remote_write:
-      - url: http://prometheus:9090/api/v1/write
-        send_exemplars: true
-
-# Overrides configuration
-overrides:
-  defaults:
-    metrics_generator:
-      processors: [service-graphs, span-metrics] # Generate service graphs and span metrics

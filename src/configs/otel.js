@@ -1,13 +1,11 @@
 // src/configs/otel.js
-// Professional OpenTelemetry configuration for unified observability and audit logging
+// Simplified OpenTelemetry configuration for distributed tracing only
+// Logs: handled by Vector (stdout → Loki)
+// Metrics: handled by native Prometheus client
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
-import { MeterProvider } from "@opentelemetry/sdk-metrics";
 // Fix for CommonJS compatibility
 import resourcesPkg from "@opentelemetry/resources";
 const { resourceFromAttributes } = resourcesPkg;
@@ -24,21 +22,20 @@ if (config.isDev) {
 }
 
 /**
- * Initialize OpenTelemetry SDK with full observability stack
- * Provides: Logs, Traces, and automatic instrumentation for audit logging
+ * Initialize OpenTelemetry SDK for distributed tracing
+ * Simplified stack: traces only (logs via Vector, metrics via Prometheus client)
  *
  * @returns {NodeSDK|null} Initialized OpenTelemetry SDK or null if disabled
  */
 export function initializeOpenTelemetry() {
+  // Check if tracing is enabled (using LOKI_ENABLED as a general observability flag)
   if (!config.loki.enabled) {
     console.log("📊 OpenTelemetry disabled - LOKI_ENABLED is not set to true");
     return null;
   }
 
   try {
-    console.log(
-      "🚀 Initializing OpenTelemetry for professional audit logging..."
-    );
+    console.log("🚀 Initializing OpenTelemetry for distributed tracing...");
 
     // Define service resource with metadata
     const resource = resourceFromAttributes({
@@ -47,16 +44,6 @@ export function initializeOpenTelemetry() {
       [ATTR_DEPLOYMENT_ENVIRONMENT]: config.env,
       "service.namespace": "authentication",
       "service.instance.id": process.env.HOSTNAME || "local-instance",
-    });
-
-    // Configure OTLP Log Exporter to Loki
-    const logExporter = new OTLPLogExporter({
-      url: `${config.loki.url}/otlp/v1/logs`,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // Retry configuration
-      timeoutMillis: 15000,
     });
 
     // Configure OTLP Trace Exporter to Tempo
@@ -69,33 +56,9 @@ export function initializeOpenTelemetry() {
       timeoutMillis: 15000,
     });
 
-    // Configure Prometheus Metrics Exporter
-    const prometheusExporter = new PrometheusExporter(
-      {
-        port: 9464, // Prometheus metrics endpoint port
-        endpoint: "/metrics",
-      },
-      () => {
-        console.log(
-          "📊 Prometheus metrics server running on http://localhost:9464/metrics"
-        );
-      }
-    );
-
-    // Create MeterProvider with Prometheus exporter
-    const meterProvider = new MeterProvider({
-      resource,
-      readers: [prometheusExporter],
-    });
-
-    // Initialize NodeSDK with comprehensive auto-instrumentation
+    // Initialize NodeSDK with traces only
     const sdk = new NodeSDK({
       resource,
-      logRecordProcessor: new BatchLogRecordProcessor(logExporter, {
-        maxQueueSize: 1000,
-        maxExportBatchSize: 100,
-        scheduledDelayMillis: 5000, // Export every 5 seconds
-      }),
       spanProcessor: new BatchSpanProcessor(traceExporter, {
         maxQueueSize: 1000,
         maxExportBatchSize: 100,
@@ -109,10 +72,10 @@ export function initializeOpenTelemetry() {
           },
           "@opentelemetry/instrumentation-http": {
             enabled: true,
-            ignoreIncomingPaths: ["/health"], // Don't trace health checks
+            ignoreIncomingPaths: ["/health", "/metrics"], // Don't trace health checks and metrics
           },
         }),
-        // Instrument Pino logger to inject trace context
+        // Instrument Pino logger to inject trace context into logs
         new PinoInstrumentation({
           logKeys: {
             traceId: "trace_id",
@@ -126,10 +89,8 @@ export function initializeOpenTelemetry() {
     // Start the SDK
     sdk.start();
 
-    console.log("✅ OpenTelemetry initialized successfully");
-    console.log(`📡 Sending logs to: ${config.loki.url}/otlp/v1/logs`);
+    console.log("✅ OpenTelemetry initialized successfully (traces only)");
     console.log(`📡 Sending traces to: ${tempoUrl}/v1/traces`);
-    console.log(`📊 Exposing metrics at: http://localhost:9464/metrics`);
 
     // Graceful shutdown on process termination
     const shutdown = async () => {

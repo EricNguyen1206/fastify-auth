@@ -20,7 +20,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://mimir:9009/prometheus
+    url: http://prometheus:9090
     isDefault: false
     jsonData:
       timeInterval: 15s
@@ -41,7 +41,7 @@ datasources:
         filterByTraceID: true
         filterBySpanID: false
         mapTagNamesEnabled: true
-        tags: ['service.name', 'service.namespace']
+        tags: ["service.name", "service.namespace"]
       serviceMap:
         datasourceUid: prometheus
       nodeGraph:
@@ -51,4 +51,3 @@ datasources:
       lokiSearch:
         datasourceUid: loki
     editable: true
-

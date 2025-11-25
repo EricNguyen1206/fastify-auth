@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "fastify-auth-local"
+    environment: "development"
+
+# Scrape configurations
+scrape_configs:
+  # Fastify application metrics
+  - job_name: "fastify-auth"
+    static_configs:
+      - targets: ["app:8000"]
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: "/metrics"

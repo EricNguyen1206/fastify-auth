@@ -1,12 +1,12 @@
 // src/configs/logger.js
-// Logger configuration with pino-pretty for development and pino-loki for production
+// Logger configuration with pino-pretty for development and JSON output for production
 
-import { config } from './variables.js';
+import { config } from "./variables.js";
 
 /**
  * Get Pino logger configuration based on environment
  * Development: Uses pino-pretty for human-readable console output
- * Production: Uses pino-loki to send logs to Grafana Loki
+ * Production: Outputs structured JSON to stdout (collected by Vector)
  */
 export function getLoggerConfig() {
   const baseConfig = {
@@ -21,70 +21,39 @@ export function getLoggerConfig() {
         headers: req.headers,
         hostname: req.hostname,
         remoteAddress: req.ip,
-        remotePort: req.socket?.remotePort
+        remotePort: req.socket?.remotePort,
       }),
       res: (res) => ({
         statusCode: res.statusCode,
-        headers: res.headers
+        headers: res.headers,
       }),
       err: (err) => ({
         type: err.type,
         message: err.message,
-        stack: err.stack
-      })
-    }
+        stack: err.stack,
+      }),
+    },
   };
-
-  const targets = [];
 
   // Development: use pino-pretty for beautiful console logs
   if (config.isDev) {
-    targets.push({
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname',
-        colorize: true,
-        singleLine: false,
-        messageFormat: '{levelLabel} - {msg}',
-        errorLikeObjectKeys: ['err', 'error']
-      }
-    });
-  }
-
-  // Production or if enabled: send logs to Loki
-  if (config.loki.enabled) {
-    targets.push({
-      target: 'pino-loki',
-      options: {
-        batching: true,
-        interval: 5, // Send logs every 5 seconds
-        host: config.loki.url,
-        labels: {
-          application: 'fastify-auth',
-          environment: config.env,
-          service: 'authentication'
-        },
-        // Add additional labels from context
-        replaceTimestamp: true,
-        // Retry configuration
-        timeout: 30000,
-        // Error handling
-        silenceErrors: false
-      }
-    });
-  }
-
-  // If we have any transports configured
-  if (targets.length > 0) {
     return {
       ...baseConfig,
       transport: {
-        targets: targets
-      }
+        target: "pino-pretty",
+        options: {
+          translateTime: "HH:MM:ss Z",
+          ignore: "pid,hostname",
+          colorize: true,
+          singleLine: false,
+          messageFormat: "{levelLabel} - {msg}",
+          errorLikeObjectKeys: ["err", "error"],
+        },
+      },
     };
   }
 
-  // Production without Loki: use standard JSON output
+  // Production: output structured JSON to stdout
+  // Vector will collect logs from stdout and forward to Loki
   return baseConfig;
 }

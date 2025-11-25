@@ -20,6 +20,9 @@ import securityPlugin from "./plugins/security.plugin.js";
 import authRoutes from "./routes/auth/index.js";
 import userRoutes from "./routes/user/index.js";
 
+// Metrics
+import { metricsHandler } from "./configs/metrics.js";
+
 const fastify = Fastify({
   logger: getLoggerConfig(),
 });
@@ -54,6 +57,9 @@ const start = async () => {
     // Register routes
     await fastify.register(authRoutes);
     await fastify.register(userRoutes);
+
+    // Metrics endpoint for Prometheus scraping
+    fastify.get("/metrics", metricsHandler);
 
     // Health check
     fastify.get("/health", async (request, reply) => {
