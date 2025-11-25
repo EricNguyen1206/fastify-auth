@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastify-auth-service
+  labels:
+    app: fastify-auth-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastify-auth-service
+  template:
+    metadata:
+      labels:
+        app: fastify-auth-service
+        version: v1
+    spec:
+      containers:
+      - name: fastify-auth
+        image: fastify-auth-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: fastify-auth-config
+              key: NODE_ENV
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: fastify-auth-config
+              key: PORT
+        - name: HOST
+          valueFrom:
+            configMapKeyRef:
+              name: fastify-auth-config
+              key: HOST
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: fastify-auth-config
+              key: LOG_LEVEL
+        - name: DB_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: fastify-auth-config
+              key: DB_TYPE
+        - name: LOKI_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: fastify-auth-config
+              key: LOKI_ENABLED
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: DATABASE_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: JWT_SECRET
+        - name: COOKIE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: COOKIE_SECRET
+        - name: GRAFANA_CLOUD_LOKI_URL
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_LOKI_URL
+              optional: true
+        - name: GRAFANA_CLOUD_LOKI_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_LOKI_USERNAME
+              optional: true
+        - name: GRAFANA_CLOUD_LOKI_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_LOKI_PASSWORD
+              optional: true
+        - name: GRAFANA_CLOUD_PROMETHEUS_URL
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_PROMETHEUS_URL
+              optional: true
+        - name: GRAFANA_CLOUD_PROMETHEUS_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_PROMETHEUS_USERNAME
+              optional: true
+        - name: GRAFANA_CLOUD_PROMETHEUS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_PROMETHEUS_PASSWORD
+              optional: true
+        - name: GRAFANA_CLOUD_TEMPO_URL
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_TEMPO_URL
+              optional: true
+        - name: GRAFANA_CLOUD_TEMPO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_TEMPO_USERNAME
+              optional: true
+        - name: GRAFANA_CLOUD_TEMPO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fastify-auth-secrets
+              key: GRAFANA_CLOUD_TEMPO_PASSWORD
+              optional: true
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+

@@ -59,7 +59,19 @@ See [PRODUCTION.md](PRODUCTION.md) for detailed deployment guide.
   pm2 start app.js
   ```
 
-## Scale plan
+## Cloud Architecture
+
+### Kubernetes Deployment (Recommended)
+
+- **Horizontal Pod Autoscaler (HPA)**: Auto-scales based on CPU (70%) and Memory (80%)
+- **Min Replicas**: 1
+- **Max Replicas**: 5
+- **Database**: SQLiteCloud (cloud-hosted SQLite)
+- **Observability**: Grafana Cloud (Loki, Prometheus, Tempo)
+
+See [Cloud Migration Overview](docs/cloud-migration-overview.md) for details.
+
+### Legacy Scaling Options
 
 1. PM2 Mode - Vertical Scaling
 
@@ -77,7 +89,15 @@ See [PRODUCTION.md](PRODUCTION.md) for detailed deployment guide.
 
 ## Observability Architecture
 
-**Simplified Production-Ready Stack** (Migrated 2025-11-25)
+**Cloud-Native Observability Stack** (Migrated to Grafana Cloud)
+
+- **Grafana Cloud Prometheus** - Metrics collection via remote write
+- **Grafana Cloud Loki** - Log aggregation (via Vector or direct push)
+- **Grafana Cloud Tempo** - Distributed tracing (via OpenTelemetry)
+- **Vector** - Optional lightweight log collector and forwarder
+- **Grafana Cloud** - Unified visualization dashboard
+
+**Local Development Stack** (Still supported)
 
 - **Prometheus** - Metrics collection and storage (scrapes `/metrics` endpoint)
 - **Loki** - Log aggregation (via Vector agent)

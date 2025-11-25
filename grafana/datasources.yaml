@@ -1,0 +1,37 @@
+# Grafana Cloud Datasources Configuration
+# This file is for reference only - datasources should be configured in Grafana Cloud UI
+# or via Grafana Cloud API
+
+# Prometheus Datasource
+# Name: Prometheus
+# Type: prometheus
+# URL: https://prometheus-prod-XXX.grafana.net
+# Access: Server (default)
+# Basic Auth: Enabled
+#   User: <your-prometheus-username>
+#   Password: <your-prometheus-api-key>
+
+# Loki Datasource
+# Name: Loki
+# Type: loki
+# URL: https://logs-prod-XXX.grafana.net
+# Access: Server (default)
+# Basic Auth: Enabled
+#   User: <your-loki-username>
+#   Password: <your-loki-api-key>
+
+# Tempo Datasource
+# Name: Tempo
+# Type: tempo
+# URL: https://tempo-prod-XXX.grafana.net:443
+# Access: Server (default)
+# Basic Auth: Enabled
+#   User: <your-tempo-username>
+#   Password: <your-tempo-api-key>
+# Additional Settings:
+#   - Search: Enabled
+#   - Node Graph: Enabled
+#   - Service Map: Enabled
+#   - Loki Search: Enabled (link to Loki datasource)
+#   - Prometheus Search: Enabled (link to Prometheus datasource)
+

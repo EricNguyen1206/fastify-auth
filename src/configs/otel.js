@@ -28,9 +28,13 @@ if (config.isDev) {
  * @returns {NodeSDK|null} Initialized OpenTelemetry SDK or null if disabled
  */
 export function initializeOpenTelemetry() {
-  // Check if tracing is enabled (using LOKI_ENABLED as a general observability flag)
-  if (!config.loki.enabled) {
-    console.log("📊 OpenTelemetry disabled - LOKI_ENABLED is not set to true");
+  // Check if tracing is enabled
+  // Enable if LOKI_ENABLED is true OR Grafana Cloud Tempo is configured
+  const isTracingEnabled = config.loki.enabled || 
+    (config.grafanaCloud.tempo.url && config.grafanaCloud.tempo.username && config.grafanaCloud.tempo.password);
+  
+  if (!isTracingEnabled) {
+    console.log("📊 OpenTelemetry disabled - No tracing configuration found");
     return null;
   }
 
@@ -47,12 +51,21 @@ export function initializeOpenTelemetry() {
     });
 
     // Configure OTLP Trace Exporter to Tempo
-    const tempoUrl = process.env.TEMPO_URL || "http://localhost:3200";
+    // Priority: Grafana Cloud Tempo > Local Tempo > Disabled
+    const tempoUrl = config.grafanaCloud.tempo.url || process.env.TEMPO_URL || "http://localhost:3200";
+    const tempoHeaders = {
+      "Content-Type": "application/json",
+    };
+
+    // Add basic auth for Grafana Cloud Tempo
+    if (config.grafanaCloud.tempo.url && config.grafanaCloud.tempo.username && config.grafanaCloud.tempo.password) {
+      const auth = Buffer.from(`${config.grafanaCloud.tempo.username}:${config.grafanaCloud.tempo.password}`).toString("base64");
+      tempoHeaders["Authorization"] = `Basic ${auth}`;
+    }
+
     const traceExporter = new OTLPTraceExporter({
       url: `${tempoUrl}/v1/traces`,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: tempoHeaders,
       timeoutMillis: 15000,
     });
 

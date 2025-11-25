@@ -1,9 +1,42 @@
 // src/configs/metrics.js
 // Native Prometheus client for metrics collection (replaced OpenTelemetry metrics)
 import promClient from "prom-client";
+import { config } from "./variables.js";
 
 // Create a Registry to register all metrics
 const register = new promClient.Registry();
+
+// Configure Prometheus remote write to Grafana Cloud (if configured)
+let remoteWriteInterval = null;
+
+if (config.grafanaCloud.prometheus.url && 
+    config.grafanaCloud.prometheus.username && 
+    config.grafanaCloud.prometheus.password) {
+  const auth = Buffer.from(`${config.grafanaCloud.prometheus.username}:${config.grafanaCloud.prometheus.password}`).toString("base64");
+  
+  // Push metrics to Grafana Cloud Prometheus every 15 seconds
+  remoteWriteInterval = setInterval(async () => {
+    try {
+      const metrics = await register.metrics();
+      const response = await fetch(config.grafanaCloud.prometheus.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+          "Authorization": `Basic ${auth}`,
+        },
+        body: metrics,
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to push metrics to Grafana Cloud: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error pushing metrics to Grafana Cloud:", error.message);
+    }
+  }, 15000); // Push every 15 seconds
+  
+  console.log("✅ Prometheus remote write configured for Grafana Cloud");
+}
 
 // Add default metrics (CPU, memory, event loop lag, etc.)
 promClient.collectDefaultMetrics({
@@ -212,3 +245,17 @@ export async function metricsHandler(request, reply) {
 export function getMetricsRegistry() {
   return register;
 }
+
+/**
+ * Cleanup remote write interval on shutdown
+ */
+export function cleanupMetrics() {
+  if (remoteWriteInterval) {
+    clearInterval(remoteWriteInterval);
+    remoteWriteInterval = null;
+  }
+}
+
+// Cleanup on process termination
+process.on("SIGTERM", cleanupMetrics);
+process.on("SIGINT", cleanupMetrics);

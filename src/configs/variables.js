@@ -36,9 +36,18 @@ export const config = {
       : join(__dirname, "../../data/app.db"),
     connectionString: process.env.DB_CONNECTION_STRING || null,
     // Prisma DATABASE_URL - Single Source of Truth
-    url:
-      process.env.DATABASE_URL ||
-      `file:${join(__dirname, "../../data/app.db")}`,
+    // For SQLiteCloud: use sqlitecloud:// connection string
+    // For local SQLite: use file: protocol
+    url: (() => {
+      const dbType = process.env.DB_TYPE || "sqlite";
+      if (dbType === "sqlitecloud") {
+        // SQLiteCloud connection string format: sqlitecloud://user:pass@host:port/database
+        // Or use DB_CONNECTION_STRING if provided
+        return process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING || null;
+      }
+      // Local SQLite
+      return process.env.DATABASE_URL || `file:${join(__dirname, "../../data/app.db")}`;
+    })(),
   },
 
   rateLimit: {
@@ -49,6 +58,24 @@ export const config = {
   loki: {
     enabled: process.env.LOKI_ENABLED === "true",
     url: process.env.LOKI_URL || "http://localhost:3101",
+  },
+
+  grafanaCloud: {
+    loki: {
+      url: process.env.GRAFANA_CLOUD_LOKI_URL || null,
+      username: process.env.GRAFANA_CLOUD_LOKI_USERNAME || null,
+      password: process.env.GRAFANA_CLOUD_LOKI_PASSWORD || null,
+    },
+    prometheus: {
+      url: process.env.GRAFANA_CLOUD_PROMETHEUS_URL || null,
+      username: process.env.GRAFANA_CLOUD_PROMETHEUS_USERNAME || null,
+      password: process.env.GRAFANA_CLOUD_PROMETHEUS_PASSWORD || null,
+    },
+    tempo: {
+      url: process.env.GRAFANA_CLOUD_TEMPO_URL || null,
+      username: process.env.GRAFANA_CLOUD_TEMPO_USERNAME || null,
+      password: process.env.GRAFANA_CLOUD_TEMPO_PASSWORD || null,
+    },
   },
 };
 

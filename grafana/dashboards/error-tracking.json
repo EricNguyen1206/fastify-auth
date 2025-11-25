@@ -1,0 +1,64 @@
+{
+  "dashboard": {
+    "title": "Fastify Auth - Error Tracking",
+    "tags": ["fastify", "auth", "errors"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Error Rate Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(http_errors_total[5m])) by (status_code, route)",
+            "legendFormat": "{{status_code}} {{route}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Error Rate by Route",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum(rate(http_errors_total[5m])) by (route)",
+            "legendFormat": "{{route}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 3,
+        "title": "Error Rate by Status Code",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(rate(http_errors_total[5m])) by (status_code)",
+            "legendFormat": "{{status_code}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Recent Errors from Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{application=\"fastify-auth\"} |= \"error\" | json",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 16}
+      }
+    ]
+  }
+}
+

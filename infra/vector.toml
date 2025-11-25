@@ -36,6 +36,9 @@ source = '''
 [sinks.loki]
 type = "loki"
 inputs = ["add_labels"]
+# For Grafana Cloud: Replace with your Grafana Cloud Loki endpoint
+# Example: https://logs-prod-XXX.grafana.net/loki/api/v1/push
+# For local: http://loki:3101
 endpoint = "http://loki:3101"
 encoding.codec = "json"
 labels.application = "{{ application }}"
@@ -45,6 +48,12 @@ labels.container_name = "{{ container_name }}"
 # Include trace context for correlation
 labels.trace_id = "{{ trace_id }}"
 labels.span_id = "{{ span_id }}"
+
+# For Grafana Cloud, add authentication headers:
+# [sinks.loki.auth]
+# strategy = "basic"
+# user = "${GRAFANA_CLOUD_LOKI_USERNAME}"
+# password = "${GRAFANA_CLOUD_LOKI_PASSWORD}"
 
 # Batch settings for performance
 batch.max_bytes = 1048576  # 1MB

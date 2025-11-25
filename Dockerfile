@@ -47,7 +47,7 @@ COPY --from=builder /app/prisma ./prisma
 # Copy application source
 COPY src ./src
 
-# Create data directory for SQLite
+# Create data directory for SQLite (for local development)
 RUN mkdir -p /app/data && chown -R node:node /app/data
 
 # Use non-root user

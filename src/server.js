@@ -21,7 +21,7 @@ import authRoutes from "./routes/auth/index.js";
 import userRoutes from "./routes/user/index.js";
 
 // Metrics
-import { metricsHandler } from "./configs/metrics.js";
+import { metricsHandler, cleanupMetrics } from "./configs/metrics.js";
 
 const fastify = Fastify({
   logger: getLoggerConfig(),
@@ -31,6 +31,7 @@ const fastify = Fastify({
 const gracefulShutdown = async (signal) => {
   fastify.log.info(`${signal} received, closing server...`);
   try {
+    cleanupMetrics();
     await fastify.close();
     process.exit(0);
   } catch (err) {
