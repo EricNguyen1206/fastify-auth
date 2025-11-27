@@ -1,0 +1,152 @@
+# .github/workflows/build-push-image.yml
+name: Build and Push Image
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch: # Manual trigger
+    inputs:
+      skip_cache:
+        description: 'Skip Docker cache'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PROJECT_ID: snack-survey-deff4
+  REGION: asia-southeast1
+  SERVICE_NAME: auth-service
+  REPOSITORY: auth-service
+  REGISTRY: asia-southeast1-docker.pkg.dev
+  GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    outputs:
+      image_tag: ${{ steps.image-tags.outputs.full_tag }}
+      image_digest: ${{ steps.build-push.outputs.digest }}
+      image_short_tag: ${{ steps.image-tags.outputs.short_tag }}
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Validate GCP service account key secret
+      - name: Validate GCP secret
+        run: |
+          if [ -z "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" ]; then
+            echo "❌ Error: GOOGLE_APPLICATION_CREDENTIALS secret is not set or is empty"
+            echo "Please set GOOGLE_APPLICATION_CREDENTIALS secret in GitHub repository settings:"
+            echo "Settings > Secrets and variables > Actions > New repository secret"
+            echo "Value should be the JSON content of your service account key file"
+            exit 1
+          fi
+          # Validate JSON format
+          echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' | jq . > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "⚠️ Warning: GOOGLE_APPLICATION_CREDENTIALS may not be valid JSON, but continuing..."
+          fi
+          echo "✅ GOOGLE_APPLICATION_CREDENTIALS secret is set"
+
+      # Step 3: Create service account key file from secret
+      - name: Create service account key file
+        run: |
+          echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' | jq . > ${{ env.GOOGLE_APPLICATION_CREDENTIALS }} || \
+          echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' > ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          chmod 600 ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          echo "✅ Service account key file created at ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}"
+
+      # Step 4: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
+      # Step 5: Setup Cloud SDK
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
+      # Step 6: Create Artifact Registry repository (if not exists)
+      - name: Create Artifact Registry repository
+        run: |
+          gcloud artifacts repositories describe ${{ env.REPOSITORY }} \
+            --location=${{ env.REGION }} \
+            --format="value(name)" || \
+          gcloud artifacts repositories create ${{ env.REPOSITORY }} \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --description="Docker images for Cloud Run services" \
+            --quiet
+
+      # Step 7: Configure Docker to use Artifact Registry
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      # Step 8: Set image tags
+      - name: Set image tags
+        id: image-tags
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          IMAGE_LATEST=latest
+          IMAGE_SHORT_SHA=${IMAGE_TAG:0:7}
+          
+          FULL_IMAGE_TAG="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          FULL_IMAGE_LATEST="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${IMAGE_LATEST}"
+          FULL_IMAGE_SHORT="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${IMAGE_SHORT_SHA}"
+          
+          echo "full_tag=${FULL_IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "latest_tag=${FULL_IMAGE_LATEST}" >> $GITHUB_OUTPUT
+          echo "short_tag=${FULL_IMAGE_SHORT}" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          
+          echo "📦 Image tags:"
+          echo "  - Full: ${FULL_IMAGE_TAG}"
+          echo "  - Latest: ${FULL_IMAGE_LATEST}"
+          echo "  - Short: ${FULL_IMAGE_SHORT}"
+
+      # Step 9: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      # Step 10: Build and push Docker image with cache
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image-tags.outputs.full_tag }}
+            ${{ steps.image-tags.outputs.latest_tag }}
+            ${{ steps.image-tags.outputs.short_tag }}
+          cache-from: ${{ inputs.skip_cache == false && format('type=registry,ref={0}/{1}/{2}/{3}:buildcache', env.REGISTRY, env.PROJECT_ID, env.REPOSITORY, env.SERVICE_NAME) || '' }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:buildcache,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      # Step 11: Show build summary
+      - name: Build Summary
+        run: |
+          echo "✅ Image built and pushed successfully!"
+          echo "📦 Image: ${{ steps.image-tags.outputs.full_tag }}"
+          echo "🔒 Digest: ${{ steps.build-push.outputs.digest }}"
+          echo "🏷️ Tags:"
+          echo "  - ${{ steps.image-tags.outputs.full_tag }}"
+          echo "  - ${{ steps.image-tags.outputs.latest_tag }}"
+          echo "  - ${{ steps.image-tags.outputs.short_tag }}"
