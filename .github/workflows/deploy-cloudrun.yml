@@ -9,48 +9,50 @@ on:
   workflow_dispatch: # Manual trigger
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: snack-survey-deff4
   REGION: asia-southeast1
   SERVICE_NAME: auth-service
   REPOSITORY: auth-service
   REGISTRY: ${{ env.REGION }}-docker.pkg.dev
+  GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
-    # Permissions needed for Workload Identity Federation
+    # Permissions for GitHub Actions
     permissions:
       contents: read
-      id-token: write
 
     steps:
       # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Authenticate to Google Cloud
-      # Option A: Using Workload Identity Federation (RECOMMENDED - No JSON keys)
+      # Step 2: Create service account key file from secret
+      - name: Create service account key file
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' | jq . > ${{ env.GOOGLE_APPLICATION_CREDENTIALS }} || \
+          echo '${{ secrets.GCP_SA_KEY }}' > ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          chmod 600 ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          echo "✅ Service account key file created at ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+
+      # Step 3: Authenticate to Google Cloud using service account key
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # Option B: Using Service Account Key (Less secure, but simpler for testing)
-      # Uncomment below and comment Option A if using service account key
-      # - name: Authenticate to Google Cloud
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      # Step 3: Setup Cloud SDK
+      # Step 4: Setup Cloud SDK
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-      # Step 4: Create Artifact Registry repository (if not exists)
+      # Step 5: Create Artifact Registry repository (if not exists)
       - name: Create Artifact Registry repository
         run: |
           gcloud artifacts repositories describe ${{ env.REPOSITORY }} \
@@ -62,12 +64,12 @@ jobs:
             --description="Docker images for Cloud Run services" \
             --quiet
 
-      # Step 5: Configure Docker to use Artifact Registry
+      # Step 6: Configure Docker to use Artifact Registry
       - name: Configure Docker
         run: |
           gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-      # Step 6: Set image tags
+      # Step 7: Set image tags
       - name: Set image tags
         id: image-tags
         run: |
@@ -84,7 +86,7 @@ jobs:
           echo "short_tag=${FULL_IMAGE_SHORT}" >> $GITHUB_OUTPUT
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-      # Step 7: Build and push Docker image with cache
+      # Step 8: Build and push Docker image with cache
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -99,8 +101,10 @@ jobs:
           build-args: |
             NODE_ENV=production
 
-      # Step 8: Deploy to Cloud Run
+      # Step 9: Deploy to Cloud Run
       - name: Deploy to Cloud Run
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${{ steps.image-tags.outputs.full_tag }} \
@@ -118,7 +122,7 @@ jobs:
             --update-secrets DATABASE_URI=DATABASE_URI:latest,JWT_SECRET=JWT_SECRET:latest,COOKIE_SECRET=COOKIE_SECRET:latest \
             --quiet
 
-      # Step 9: Show service URL and info
+      # Step 10: Show service URL and info
       - name: Show Service URL
         run: |
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
@@ -129,7 +133,7 @@ jobs:
           echo "📦 Image: ${{ steps.image-tags.outputs.full_tag }}"
           echo "🔗 Health check: $SERVICE_URL/health"
           
-      # Step 10: Test health endpoint (optional)
+      # Step 11: Test health endpoint (optional)
       - name: Test health endpoint
         run: |
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
