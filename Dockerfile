@@ -62,4 +62,5 @@ EXPOSE 8080
 # Cloud Run will handle health checks
 
 # Start application
-CMD ["src/server.js"]
+# Distroless nodejs image has node as entrypoint, but we need to specify it explicitly
+CMD ["node", "src/server.js"]
