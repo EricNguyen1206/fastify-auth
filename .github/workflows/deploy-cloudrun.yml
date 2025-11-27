@@ -110,7 +110,7 @@ jobs:
             --timeout 300 \
             --concurrency 80 \
             --port 8080 \
-            --set-env-vars NODE_ENV=production,PORT=8080,HOST=0.0.0.0,LOG_LEVEL=info \
+            --set-env-vars NODE_ENV=production,HOST=0.0.0.0,LOG_LEVEL=info \
             --update-secrets DATABASE_URI=DATABASE_URI:latest,JWT_SECRET=JWT_SECRET:latest,COOKIE_SECRET=COOKIE_SECRET:latest \
             --quiet
 

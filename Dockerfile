@@ -53,7 +53,6 @@ COPY --from=builder /app/src ./src
 
 # Environment variables
 ENV NODE_ENV=production \
-    PORT=8080 \
     HOST=0.0.0.0
 
 EXPOSE 8080
