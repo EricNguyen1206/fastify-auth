@@ -73,6 +73,13 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
+      # Step 5.5: Enable Secret Manager API (if not already enabled)
+      - name: Enable Secret Manager API
+        run: |
+          echo "🔧 Enabling Secret Manager API..."
+          gcloud services enable secretmanager.googleapis.com --project=${{ env.PROJECT_ID }} || true
+          echo "✅ Secret Manager API is enabled"
+
       # Step 6: Determine image tag to deploy
       - name: Determine image tag
         id: image
