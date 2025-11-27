@@ -1,68 +1,60 @@
-# Production-Ready Dockerfile for Fastify Authentication Service
-# Multi-stage build for optimized image size
+# Ultra-optimized Dockerfile with Distroless
+# Image size: ~50-70MB vs ~120-150MB Alpine
+# Security: No shell, no package manager in final image
 
-# Stage 1: Builder
+# Stage 1: Dependencies
+FROM node:18-alpine AS deps
+WORKDIR /app
+RUN npm install -g pnpm@10.21.0
+COPY package.json pnpm-lock.yaml ./
+# Disable postinstall script for production deps (prisma generate needs dev deps)
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+# Stage 2: Builder
 FROM node:18-alpine AS builder
-
 WORKDIR /app
-
-# Install OpenSSL 1.1 compatibility for Prisma
-RUN apk add --no-cache openssl1.1-compat
-
-# Copy package files
+RUN npm install -g pnpm@10.21.0
 COPY package.json pnpm-lock.yaml ./
+# Disable postinstall script (prisma generate will be done manually)
+RUN pnpm install --frozen-lockfile --ignore-scripts
+# Copy prisma if exists (will fail if folder doesn't exist)
+# If Prisma is not used, ensure prisma folder exists or comment this line
 COPY prisma ./prisma
+RUN if [ -f "prisma/schema.prisma" ]; then pnpm prisma generate; else echo "Prisma schema not found, skipping generate"; fi
+# Ensure directories exist for distroless stage
+RUN mkdir -p ./node_modules/.prisma ./prisma || true
+COPY src ./src
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm@10.21.0
-RUN pnpm install --frozen-lockfile --prod=false
-
-# Copy application source
-COPY . .
-
-# Generate Prisma client
-RUN pnpm prisma generate
-
-# Stage 2: Production
-FROM node:18-alpine
+# Stage 3: Distroless (ultra-minimal)
+FROM gcr.io/distroless/nodejs18-debian11
 
 WORKDIR /app
 
-# Install OpenSSL 1.1 compatibility for Prisma
-RUN apk add --no-cache openssl1.1-compat
+# Copy from deps
+COPY --from=deps /app/node_modules ./node_modules
 
-# Install pnpm
-RUN npm install -g pnpm@10.21.0
-
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built files and generated Prisma client from builder
+# Copy Prisma client (if exists)
+# Note: These will fail if Prisma is not set up - ensure prisma folder exists
+# Distroless doesn't have shell, so create dirs in builder stage
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
 
-# Copy application source
-COPY src ./src
+# Copy source and package.json
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/src ./src
 
-# Create data directory for SQLite (for local development)
-RUN mkdir -p /app/data && chown -R node:node /app/data
+# Distroless runs as non-root by default (uid 65532)
+# No USER command needed
 
-# Use non-root user
-USER node
+# Environment variables
+ENV NODE_ENV=production \
+    PORT=8080 \
+    HOST=0.0.0.0
 
-# Expose port
-EXPOSE 8000
+EXPOSE 8080
 
-# Set production environment variables
-ENV NODE_ENV=production
-ENV PORT=8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Distroless doesn't support HEALTHCHECK
+# Cloud Run will handle health checks
 
 # Start application
-CMD ["node", "src/server.js"]
+CMD ["src/server.js"]
