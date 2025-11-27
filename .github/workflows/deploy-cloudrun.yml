@@ -2,11 +2,22 @@
 name: Deploy to Cloud Run
 
 on:
-  push:
+  # Trigger after successful build
+  workflow_run:
+    workflows: ["Build and Push Image"]
+    types:
+      - completed
     branches:
       - main
       - develop
-  workflow_dispatch: # Manual trigger
+  
+  # Manual trigger with optional image tag
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (leave empty for latest)'
+        required: false
+        type: string
 
 env:
   PROJECT_ID: snack-survey-deff4
@@ -20,12 +31,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     
-    # Permissions for GitHub Actions
+    # Only run if build workflow succeeded or manual dispatch
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
     permissions:
       contents: read
 
     steps:
-      # Step 1: Checkout code
+      # Step 1: Checkout code (needed for potential rollback info)
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -34,35 +47,24 @@ jobs:
         run: |
           if [ -z "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" ]; then
             echo "❌ Error: GOOGLE_APPLICATION_CREDENTIALS secret is not set or is empty"
-            echo "Please set GOOGLE_APPLICATION_CREDENTIALS secret in GitHub repository settings:"
-            echo "Settings > Secrets and variables > Actions > New repository secret"
-            echo "Value should be the JSON content of your service account key file"
+            echo "Please set GOOGLE_APPLICATION_CREDENTIALS secret in GitHub repository settings"
             exit 1
-          fi
-          # Validate JSON format
-          echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' | jq . > /dev/null 2>&1
-          if [ $? -ne 0 ]; then
-            echo "⚠️ Warning: GOOGLE_APPLICATION_CREDENTIALS may not be valid JSON, but continuing..."
           fi
           echo "✅ GOOGLE_APPLICATION_CREDENTIALS secret is set"
 
-      # Step 3: Create service account key file from secret
+      # Step 3: Create service account key file
       - name: Create service account key file
         run: |
           echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' | jq . > ${{ env.GOOGLE_APPLICATION_CREDENTIALS }} || \
           echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' > ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
           chmod 600 ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
-          echo "✅ Service account key file created at ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}"
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          echo "✅ Service account key file created"
 
-      # Step 4: Authenticate to Google Cloud using service account key file
+      # Step 4: Authenticate to Google Cloud
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
 
       # Step 5: Setup Cloud SDK
       - name: Set up Cloud SDK
@@ -71,70 +73,33 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
-      # Step 6: Create Artifact Registry repository (if not exists)
-      - name: Create Artifact Registry repository
+      # Step 6: Determine image tag to deploy
+      - name: Determine image tag
+        id: image
         run: |
-          gcloud artifacts repositories describe ${{ env.REPOSITORY }} \
-            --location=${{ env.REGION }} \
-            --format="value(name)" || \
-          gcloud artifacts repositories create ${{ env.REPOSITORY }} \
-            --repository-format=docker \
-            --location=${{ env.REGION }} \
-            --description="Docker images for Cloud Run services" \
-            --quiet
-
-      # Step 7: Configure Docker to use Artifact Registry
-      - name: Configure Docker
-        run: |
-          gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
-
-      # Step 8: Set image tags
-      - name: Set image tags
-        id: image-tags
-        run: |
-          IMAGE_TAG=${{ github.sha }}
-          IMAGE_LATEST=latest
-          IMAGE_SHORT_SHA=${IMAGE_TAG:0:7}
+          # If manual dispatch with custom tag, use it
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ inputs.image_tag }}"
+            echo "🎯 Using manual image tag: ${IMAGE_TAG}"
+          # If triggered by workflow_run, use the commit SHA from that run
+          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+            IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+            echo "🎯 Using image tag from build workflow: ${IMAGE_TAG}"
+          # Fallback to latest
+          else
+            IMAGE_TAG="latest"
+            echo "🎯 Using latest image tag"
+          fi
           
           FULL_IMAGE_TAG="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          FULL_IMAGE_LATEST="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${IMAGE_LATEST}"
-          FULL_IMAGE_SHORT="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${IMAGE_SHORT_SHA}"
-          
           echo "full_tag=${FULL_IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "latest_tag=${FULL_IMAGE_LATEST}" >> $GITHUB_OUTPUT
-          echo "short_tag=${FULL_IMAGE_SHORT}" >> $GITHUB_OUTPUT
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "📦 Deploying image: ${FULL_IMAGE_TAG}"
 
-      # Step 9: Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
-            network=host
-
-      # Step 10: Build and push Docker image with cache
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ steps.image-tags.outputs.full_tag }}
-            ${{ steps.image-tags.outputs.latest_tag }}
-            ${{ steps.image-tags.outputs.short_tag }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:buildcache,mode=max
-          build-args: |
-            NODE_ENV=production
-
-      # Step 11: Deploy to Cloud Run
+      # Step 7: Deploy to Cloud Run
       - name: Deploy to Cloud Run
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ steps.image-tags.outputs.full_tag }} \
+            --image ${{ steps.image.outputs.full_tag }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -149,22 +114,45 @@ jobs:
             --update-secrets DATABASE_URI=DATABASE_URI:latest,JWT_SECRET=JWT_SECRET:latest,COOKIE_SECRET=COOKIE_SECRET:latest \
             --quiet
 
-      # Step 12: Show service URL and info
+      # Step 8: Show service URL and info
       - name: Show Service URL
+        id: service-info
         run: |
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --format 'value(status.url)')
           echo "✅ Deployment successful!"
           echo "🌐 Service URL: $SERVICE_URL"
-          echo "📦 Image: ${{ steps.image-tags.outputs.full_tag }}"
+          echo "📦 Image: ${{ steps.image.outputs.full_tag }}"
           echo "🔗 Health check: $SERVICE_URL/health"
+          echo "service_url=${SERVICE_URL}" >> $GITHUB_OUTPUT
           
-      # Step 13: Test health endpoint (optional)
+      # Step 9: Test health endpoint
       - name: Test health endpoint
         run: |
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region ${{ env.REGION }} \
-            --format 'value(status.url)')
-          sleep 10  # Wait for service to be ready
-          curl -f "$SERVICE_URL/health" || echo "⚠️ Health check failed, but deployment succeeded"
+          SERVICE_URL="${{ steps.service-info.outputs.service_url }}"
+          echo "⏳ Waiting for service to be ready..."
+          sleep 10
+          
+          echo "🔍 Testing health endpoint: $SERVICE_URL/health"
+          if curl -f "$SERVICE_URL/health"; then
+            echo "✅ Health check passed!"
+          else
+            echo "⚠️ Health check failed, but deployment succeeded"
+            echo "This may be normal if the service needs more time to start"
+            exit 0
+          fi
+
+      # Step 10: Deployment summary
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ steps.image.outputs.full_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.service-info.outputs.service_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Service URL](${{ steps.service-info.outputs.service_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Health Check](${{ steps.service-info.outputs.service_url }}/health)" >> $GITHUB_STEP_SUMMARY
