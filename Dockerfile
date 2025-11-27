@@ -17,13 +17,18 @@ RUN npm install -g pnpm@10.21.0
 COPY package.json pnpm-lock.yaml ./
 # Disable postinstall script (prisma generate will be done manually)
 RUN pnpm install --frozen-lockfile --ignore-scripts
-# Copy prisma if exists (will fail if folder doesn't exist)
-# If Prisma is not used, ensure prisma folder exists or comment this line
-COPY prisma ./prisma
-RUN if [ -f "prisma/schema.prisma" ]; then pnpm prisma generate; else echo "Prisma schema not found, skipping generate"; fi
-# Ensure directories exist for distroless stage
-RUN mkdir -p ./node_modules/.prisma ./prisma || true
+# Copy source code
 COPY src ./src
+# Copy prisma folder (now exists, even if empty)
+COPY prisma ./prisma
+# Check if prisma schema exists and generate client
+RUN if [ -f "prisma/schema.prisma" ]; then \
+      echo "Prisma schema found, generating client..."; \
+      pnpm prisma generate; \
+    else \
+      echo "Prisma schema not found, skipping generate"; \
+    fi && \
+    mkdir -p ./node_modules/.prisma || true
 
 # Stage 3: Distroless (ultra-minimal)
 FROM gcr.io/distroless/nodejs18-debian11
@@ -34,8 +39,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy Prisma client (if exists)
-# Note: These will fail if Prisma is not set up - ensure prisma folder exists
 # Distroless doesn't have shell, so create dirs in builder stage
+# These directories are created in builder stage, so COPY will work even if empty
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
 
