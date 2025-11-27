@@ -13,7 +13,7 @@ env:
   REGION: asia-southeast1
   SERVICE_NAME: auth-service
   REPOSITORY: auth-service
-  REGISTRY: ${{ env.REGION }}-docker.pkg.dev
+  REGISTRY: asia-southeast1-docker.pkg.dev
   GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
 
 jobs:
