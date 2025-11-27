@@ -105,7 +105,15 @@ jobs:
           echo "short_tag=${FULL_IMAGE_SHORT}" >> $GITHUB_OUTPUT
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-      # Step 9: Build and push Docker image with cache
+      # Step 9: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      # Step 10: Build and push Docker image with cache
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -120,7 +128,7 @@ jobs:
           build-args: |
             NODE_ENV=production
 
-      # Step 10: Deploy to Cloud Run
+      # Step 11: Deploy to Cloud Run
       - name: Deploy to Cloud Run
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
@@ -141,7 +149,7 @@ jobs:
             --update-secrets DATABASE_URI=DATABASE_URI:latest,JWT_SECRET=JWT_SECRET:latest,COOKIE_SECRET=COOKIE_SECRET:latest \
             --quiet
 
-      # Step 11: Show service URL and info
+      # Step 12: Show service URL and info
       - name: Show Service URL
         run: |
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
@@ -152,7 +160,7 @@ jobs:
           echo "📦 Image: ${{ steps.image-tags.outputs.full_tag }}"
           echo "🔗 Health check: $SERVICE_URL/health"
           
-      # Step 12: Test health endpoint (optional)
+      # Step 13: Test health endpoint (optional)
       - name: Test health endpoint
         run: |
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
