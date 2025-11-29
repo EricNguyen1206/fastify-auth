@@ -71,7 +71,7 @@ COPY --chown=nodejs:nodejs . .
 
 # Install Grafana Alloy
 USER root
-RUN apk add --no-cache curl unzip
+RUN apk add --no-cache curl unzip libc6-compat
 
 # Download and install Alloy
 # Using a specific version for stability
