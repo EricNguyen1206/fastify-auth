@@ -65,9 +65,11 @@ const start = async () => {
       };
     });
 
-    await fastify.listen({
-      port: config.server.port,
-      host: config.server.host,
+    const port = process.env.PORT || 8080;
+
+    fastify.listen({
+      port,
+      host: "0.0.0.0",
     });
 
     fastify.log.info(`Server running in ${config.env} mode`);
