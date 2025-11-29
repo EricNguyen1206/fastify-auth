@@ -22,7 +22,6 @@ const requestCounter = new Counter({
 // Collect automatic system metrics (CPU, memory, process, event loop, etc.)
 collectDefaultMetrics({
   register,
-  prefix: 'auth_service_',
 });
 
 register.registerMetric(requestCounter);
