@@ -118,7 +118,7 @@ jobs:
             --concurrency 80 \
             --port 8080 \
             --set-env-vars NODE_ENV=production,HOST=0.0.0.0,LOG_LEVEL=info \
-            --update-secrets DATABASE_URI=DATABASE_URI:latest,JWT_SECRET=JWT_SECRET:latest,COOKIE_SECRET=COOKIE_SECRET:latest \
+            --update-secrets DATABASE_URI=DATABASE_URI:latest,JWT_SECRET=JWT_SECRET:latest,COOKIE_SECRET=COOKIE_SECRET:latest,METRICS_USER=METRICS_USER:latest,METRICS_PASSWORD=METRICS_PASSWORD:latest \
             --quiet
 
       # Step 8: Show service URL and info
