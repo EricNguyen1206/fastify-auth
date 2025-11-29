@@ -28,9 +28,39 @@ collectDefaultMetrics({
 register.registerMetric(requestCounter);
 
 async function metricsPlugin(fastify, options) {
-  // Metrics endpoint - exposed for Prometheus scraping
-  fastify.get('/metrics', async (request, reply) => {
-    reply.type('text/plain');
+  // Metrics endpoint - exposed for Prometheus scraping with basic auth
+  fastify.get('/metrics', {
+    preHandler: async (request, reply) => {
+      // Basic authentication for metrics endpoint
+      const authHeader = request.headers.authorization;
+      
+      // Get credentials from environment variables
+      const metricsUser = process.env.METRICS_USER || 'prometheus';
+      const metricsPassword = process.env.METRICS_PASSWORD;
+      
+      // If no password is set, allow public access (for backward compatibility)
+      if (!metricsPassword) {
+        return;
+      }
+      
+      if (!authHeader || !authHeader.startsWith('Basic ')) {
+        reply.code(401);
+        reply.header('WWW-Authenticate', 'Basic realm="Metrics"');
+        throw new Error('Authentication required');
+      }
+      
+      const base64Credentials = authHeader.split(' ')[1];
+      const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+      const [username, password] = credentials.split(':');
+      
+      if (username !== metricsUser || password !== metricsPassword) {
+        reply.code(401);
+        reply.header('WWW-Authenticate', 'Basic realm="Metrics"');
+        throw new Error('Invalid credentials');
+      }
+    }
+  }, async (request, reply) => {
+    reply.type('text/plain; version=0.0.4; charset=utf-8');
     return register.metrics();
   });
 
