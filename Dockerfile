@@ -69,7 +69,26 @@ COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
 # Copy application source
 COPY --chown=nodejs:nodejs . .
 
-# Switch to non-root user
+# Install Grafana Alloy
+USER root
+RUN apk add --no-cache curl unzip
+
+# Download and install Alloy
+# Using a specific version for stability
+RUN curl -L -o /tmp/alloy.zip "https://github.com/grafana/alloy/releases/download/v1.4.0/alloy-linux-amd64.zip" && \
+    unzip /tmp/alloy.zip -d /usr/bin && \
+    mv /usr/bin/alloy-linux-amd64 /usr/bin/alloy && \
+    chmod +x /usr/bin/alloy && \
+    rm /tmp/alloy.zip
+
+# Copy Alloy config
+COPY grafana/config.alloy /etc/alloy/config.alloy
+
+# Copy entrypoint script
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+# Switch back to nodejs user
 USER nodejs
 
 # Set environment variables
@@ -82,5 +101,5 @@ EXPOSE 8080
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application
-CMD ["node", "src/server.js"]
+# Start the application via entrypoint script
+CMD ["./entrypoint.sh"]

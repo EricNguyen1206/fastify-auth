@@ -1,0 +1,33 @@
+// Config scrape metrics từ localhost
+prometheus.scrape "default" {
+  targets = [
+    {
+      // App chạy port 8080 trong container
+      __address__ = "localhost:8080",
+    },
+  ]
+
+  // Scrape mỗi 15s
+  scrape_interval = "15s"
+  metrics_path    = "/metrics"
+
+  // Basic Auth để scrape local app (vì app đã bật auth)
+  basic_auth {
+    username = sys.env("METRICS_USER")
+    password = sys.env("METRICS_PASSWORD")
+  }
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Config đẩy metrics lên Grafana Cloud
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_REMOTE_WRITE_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_REMOTE_WRITE_USERNAME")
+      password = sys.env("GRAFANA_REMOTE_WRITE_PASSWORD")
+    }
+  }
+}
