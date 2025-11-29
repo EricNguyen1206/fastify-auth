@@ -1,20 +1,50 @@
+# Dependencies
 node_modules
 npm-debug.log
+
+# Testing & Coverage
 coverage
+src/tests
+
+# Git
 .git
 .gitignore
+.github
+
+# Environment files
 .env
 .env.local
+
+# Documentation
 *.md
+!README.md
+
+# IDE
 .vscode
 .idea
+
+# Logs
 *.log
+
+# OS
 .DS_Store
+
+# Database files
 prisma/data
 prisma/backups
 *.db
 *.db-journal
 *.db-shm
 *.db-wal
+
+# Kubernetes
 k8s/secret.yaml
 !k8s/secret.yaml.template
+
+# Monitoring
+grafana
+docs
+
+# Build artifacts
+dist
+build
