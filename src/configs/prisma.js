@@ -1,8 +1,5 @@
-// src/lib/prisma.js
-// Prisma Client singleton for database access
-
 import { PrismaClient } from "@prisma/client";
-import { config } from "../configs/variables.js";
+import { config } from "./variables.js";
 
 // PrismaClient is attached to the `global` object in development to prevent
 // exhausting database connections due to hot reloading

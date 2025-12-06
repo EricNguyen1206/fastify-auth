@@ -1,7 +1,7 @@
 // src/repositories/user.repository.js
 // User repository - data access layer for user operations
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../configs/prisma.js';
 
 /**
  * Create a new user
@@ -10,17 +10,19 @@ import { prisma } from '../lib/prisma.js';
  * @param {string} name - User's display name
  * @returns {Promise<Object>} Created user object
  */
-export async function createUser(email, hashedPassword, name) {
+export async function createUser(email, hashedPassword, fullName) {
   return await prisma.user.create({
     data: {
       email,
-      password: hashedPassword,
-      name,
+      passwordHash: hashedPassword,
+      fullName,
     },
     select: {
       id: true,
       email: true,
-      name: true,
+      fullName: true,
+      avatarUrl: true,
+      isActive: true,
       createdAt: true,
     },
   });
@@ -48,7 +50,9 @@ export async function findUserById(id) {
     select: {
       id: true,
       email: true,
-      name: true,
+      fullName: true,
+      avatarUrl: true,
+      isActive: true,
       createdAt: true,
     },
   });
@@ -67,7 +71,9 @@ export async function updateUser(id, data) {
     select: {
       id: true,
       email: true,
-      name: true,
+      fullName: true,
+      avatarUrl: true,
+      isActive: true,
       createdAt: true,
     },
   });

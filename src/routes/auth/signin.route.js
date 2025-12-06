@@ -71,7 +71,7 @@ export default async function signinRoute(fastify, options) {
           user: {
             id: user.id,
             email: user.email,
-            name: user.name,
+            fullName: user.fullName,
           },
         });
       } catch (error) {

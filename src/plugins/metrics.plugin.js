@@ -26,7 +26,7 @@ collectDefaultMetrics({
 
 register.registerMetric(requestCounter);
 
-async function metricsPlugin(fastify, options) {
+async function metricsPlugin(fastify, _options) {
   // Metrics endpoint - exposed for Prometheus scraping with basic auth
   fastify.get('/metrics', {
     preHandler: async (request, reply) => {

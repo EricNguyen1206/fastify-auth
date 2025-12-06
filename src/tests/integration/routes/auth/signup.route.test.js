@@ -63,13 +63,13 @@ describe('Signup Route - POST /auth/signup', () => {
     const route = fastify._routes.find(r => r.path === '/auth/signup');
     expect(route).toBeDefined();
 
-    const newUser = createTestUser({ id: 1, email: 'newuser@example.com', name: 'New User' });
+    const newUser = createTestUser({ id: "550e8400-e29b-41d4-a716-446655440001", email: 'newuser@example.com', fullName: 'New User' });
     mockAuthService.signup.mockResolvedValue(newUser);
 
     const request = createMockRequest({
       email: 'newuser@example.com',
       password: 'password123',
-      name: 'New User',
+      fullName: 'New User',
     });
     const reply = createMockReply();
 
@@ -79,7 +79,7 @@ describe('Signup Route - POST /auth/signup', () => {
     expect(reply.code).toHaveBeenCalledWith(201);
     expect(reply.send).toHaveBeenCalledWith({
       message: 'User registered successfully',
-      userId: 1,
+      userId: "550e8400-e29b-41d4-a716-446655440001",
     });
   });
 
@@ -105,12 +105,12 @@ describe('Signup Route - POST /auth/signup', () => {
     });
   });
 
-  it('should validate name min length (2)', async () => {
+  it('should validate fullName min length (2)', async () => {
     const fastify = createMockFastify();
     await signupRoute(fastify);
 
     const route = fastify._routes.find(r => r.path === '/auth/signup');
-    expect(route.options.schema.body.properties.name).toEqual({
+    expect(route.options.schema.body.properties.fullName).toEqual({
       type: 'string',
       minLength: 2,
     });
@@ -129,7 +129,7 @@ describe('Signup Route - POST /auth/signup', () => {
     const request = createMockRequest({
       email: 'existing@example.com',
       password: 'password123',
-      name: 'Test User',
+      fullName: 'Test User',
     });
     const reply = createMockReply();
 
@@ -144,7 +144,7 @@ describe('Signup Route - POST /auth/signup', () => {
     await signupRoute(fastify);
 
     const route = fastify._routes.find(r => r.path === '/auth/signup');
-    expect(route.options.schema.body.required).toEqual(['email', 'password', 'name']);
+    expect(route.options.schema.body.required).toEqual(['email', 'password', 'fullName']);
   });
 
   it('should log successful registration', async () => {
@@ -159,7 +159,7 @@ describe('Signup Route - POST /auth/signup', () => {
     const request = createMockRequest({
       email: 'test@example.com',
       password: 'password123',
-      name: 'Test',
+      fullName: 'Test',
     });
     const reply = createMockReply();
 

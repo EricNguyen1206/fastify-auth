@@ -43,6 +43,7 @@ function createMockFastify() {
     },
     log: {
       info: jest.fn(),
+      warn: jest.fn(),
       error: jest.fn(),
     },
     audit: {
@@ -114,7 +115,7 @@ describe("Signin Route - POST /auth/signin", () => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        fullName: user.fullName,
       },
     });
   });

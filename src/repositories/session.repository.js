@@ -1,7 +1,7 @@
 // src/repositories/session.repository.js
 // Session repository - data access layer for session/refresh token operations
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../configs/prisma.js';
 
 /**
  * Create a new session with refresh token
@@ -10,26 +10,26 @@ import { prisma } from '../lib/prisma.js';
  * @param {Date} expiresAt - Token expiration date
  * @returns {Promise<Object>} Created session object
  */
-export async function createSession(userId, refreshToken, expiresAt) {
+export async function createSession(userId, refreshTokenHash, expiresAt) {
   return await prisma.session.create({
     data: {
       userId,
-      refreshToken,
+      refreshTokenHash,
       expiresAt,
     },
   });
 }
 
 /**
- * Find valid session by refresh token and user ID
- * @param {string} refreshToken - Refresh token to find
- * @param {number} userId - User ID to verify ownership
+ * Find valid session by refresh token hash and user ID
+ * @param {string} refreshTokenHash - Refresh token hash to find
+ * @param {string} userId - User ID to verify ownership
  * @returns {Promise<Object|null>} Session object or null if not found/expired
  */
-export async function findSessionByToken(refreshToken, userId) {
+export async function findSessionByToken(refreshTokenHash, userId) {
   return await prisma.session.findFirst({
     where: {
-      refreshToken,
+      refreshTokenHash,
       userId,
       expiresAt: {
         gt: new Date(), // Greater than now (not expired)
@@ -39,13 +39,13 @@ export async function findSessionByToken(refreshToken, userId) {
 }
 
 /**
- * Delete session by refresh token
- * @param {string} refreshToken - Refresh token to delete
+ * Delete session by refresh token hash
+ * @param {string} refreshTokenHash - Refresh token hash to delete
  * @returns {Promise<Object>} Deleted session or null
  */
-export async function deleteSession(refreshToken) {
+export async function deleteSession(refreshTokenHash) {
   return await prisma.session.deleteMany({
-    where: { refreshToken },
+    where: { refreshTokenHash },
   });
 }
 

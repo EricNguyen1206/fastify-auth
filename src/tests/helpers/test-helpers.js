@@ -30,11 +30,14 @@ export function createMockPrisma() {
  */
 export function createTestUser(overrides = {}) {
   return {
-    id: 1,
+    id: "550e8400-e29b-41d4-a716-446655440000",
     email: "test@example.com",
-    name: "Test User",
-    password: "$2b$10$abcdefghijklmnopqrstuvwxyz", // Mock bcryptjs hash
+    fullName: "Test User",
+    passwordHash: "$2b$10$abcdefghijklmnopqrstuvwxyz", // Mock bcryptjs hash
+    avatarUrl: null,
+    isActive: true,
     createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
     ...overrides,
   };
 }
@@ -47,9 +50,9 @@ export function createTestSession(overrides = {}) {
   expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
   return {
-    id: 1,
-    userId: 1,
-    refreshToken: "test-refresh-token",
+    id: "660e8400-e29b-41d4-a716-446655440000",
+    userId: "550e8400-e29b-41d4-a716-446655440000",
+    refreshTokenHash: "test-refresh-token",
     expiresAt,
     createdAt: new Date(),
     ...overrides,

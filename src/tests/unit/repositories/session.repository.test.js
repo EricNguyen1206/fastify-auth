@@ -16,7 +16,7 @@ const mockPrisma = {
 };
 
 // Mock the prisma module
-jest.unstable_mockModule('../../../lib/prisma.js', () => ({
+jest.unstable_mockModule('../../../configs/prisma.js', () => ({
   prisma: mockPrisma,
 }));
 
@@ -37,20 +37,20 @@ describe('Session Repository - createSession()', () => {
     jest.clearAllMocks();
   });
 
-  it('should create session with refresh token and expiry', async () => {
-    const userId = 1;
-    const refreshToken = 'test-refresh-token';
+  it('should create session with refresh token hash and expiry', async () => {
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
+    const refreshTokenHash = 'test-refresh-token-hash';
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const createdSession = createTestSession({ userId, refreshToken, expiresAt });
+    const createdSession = createTestSession({ userId, refreshTokenHash, expiresAt });
 
     mockPrismaSession.create.mockResolvedValue(createdSession);
 
-    const result = await createSession(userId, refreshToken, expiresAt);
+    const result = await createSession(userId, refreshTokenHash, expiresAt);
 
     expect(mockPrismaSession.create).toHaveBeenCalledWith({
       data: {
         userId,
-        refreshToken,
+        refreshTokenHash,
         expiresAt,
       },
     });
@@ -58,14 +58,14 @@ describe('Session Repository - createSession()', () => {
   });
 
   it('should link session to user ID', async () => {
-    const userId = 42;
-    const refreshToken = 'token-123';
+    const userId = "550e8400-e29b-41d4-a716-446655440042";
+    const refreshTokenHash = 'token-123-hash';
     const expiresAt = new Date();
     const session = createTestSession({ userId });
 
     mockPrismaSession.create.mockResolvedValue(session);
 
-    const result = await createSession(userId, refreshToken, expiresAt);
+    const result = await createSession(userId, refreshTokenHash, expiresAt);
 
     expect(result.userId).toBe(userId);
   });
@@ -77,18 +77,18 @@ describe('Session Repository - findSessionByToken()', () => {
   });
 
   it('should return session when token valid and not expired', async () => {
-    const refreshToken = 'valid-token';
-    const userId = 1;
+    const refreshTokenHash = 'valid-token-hash';
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
     const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const session = createTestSession({ refreshToken, userId, expiresAt: futureDate });
+    const session = createTestSession({ refreshTokenHash, userId, expiresAt: futureDate });
 
     mockPrismaSession.findFirst.mockResolvedValue(session);
 
-    const result = await findSessionByToken(refreshToken, userId);
+    const result = await findSessionByToken(refreshTokenHash, userId);
 
     expect(mockPrismaSession.findFirst).toHaveBeenCalledWith({
       where: {
-        refreshToken,
+        refreshTokenHash,
         userId,
         expiresAt: {
           gt: expect.any(Date),
@@ -99,40 +99,39 @@ describe('Session Repository - findSessionByToken()', () => {
   });
 
   it('should return null when token not found', async () => {
-    const refreshToken = 'nonexistent-token';
-    const userId = 1;
+    const refreshTokenHash = 'nonexistent-token-hash';
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
 
     mockPrismaSession.findFirst.mockResolvedValue(null);
 
-    const result = await findSessionByToken(refreshToken, userId);
+    const result = await findSessionByToken(refreshTokenHash, userId);
 
     expect(result).toBeNull();
   });
 
   it('should return null when session expired', async () => {
-    const refreshToken = 'expired-token';
-    const userId = 1;
+    const refreshTokenHash = 'expired-token-hash';
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
 
     // Mock returns null because query filters out expired sessions
     mockPrismaSession.findFirst.mockResolvedValue(null);
 
-    const result = await findSessionByToken(refreshToken, userId);
+    const result = await findSessionByToken(refreshTokenHash, userId);
 
     expect(result).toBeNull();
   });
 
   it('should validate user ID ownership', async () => {
-    const refreshToken = 'token';
-    const userId = 1;
-    const wrongUserId = 2;
+    const refreshTokenHash = 'token-hash';
+    const userId = "550e8400-e29b-41d4-a716-446655440001";
 
     mockPrismaSession.findFirst.mockResolvedValue(null);
 
-    const result = await findSessionByToken(refreshToken, userId);
+    const result = await findSessionByToken(refreshTokenHash, userId);
 
     expect(mockPrismaSession.findFirst).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        refreshToken,
+        refreshTokenHash,
         userId,
       }),
     });
@@ -140,16 +139,16 @@ describe('Session Repository - findSessionByToken()', () => {
   });
 
   it('should use gt (greater than) for expiry check', async () => {
-    const refreshToken = 'token';
-    const userId = 1;
+    const refreshTokenHash = 'token-hash';
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
 
     mockPrismaSession.findFirst.mockResolvedValue(null);
 
-    await findSessionByToken(refreshToken, userId);
+    await findSessionByToken(refreshTokenHash, userId);
 
     expect(mockPrismaSession.findFirst).toHaveBeenCalledWith({
       where: {
-        refreshToken,
+        refreshTokenHash,
         userId,
         expiresAt: {
           gt: expect.any(Date),
@@ -164,39 +163,39 @@ describe('Session Repository - deleteSession()', () => {
     jest.clearAllMocks();
   });
 
-  it('should delete session by refresh token', async () => {
-    const refreshToken = 'token-to-delete';
+  it('should delete session by refresh token hash', async () => {
+    const refreshTokenHash = 'token-to-delete-hash';
     const deleteResult = { count: 1 };
 
     mockPrismaSession.deleteMany.mockResolvedValue(deleteResult);
 
-    const result = await deleteSession(refreshToken);
+    const result = await deleteSession(refreshTokenHash);
 
     expect(mockPrismaSession.deleteMany).toHaveBeenCalledWith({
-      where: { refreshToken },
+      where: { refreshTokenHash },
     });
     expect(result).toEqual(deleteResult);
   });
 
   it('should return delete count', async () => {
-    const refreshToken = 'token';
+    const refreshTokenHash = 'token-hash';
     const deleteResult = { count: 1 };
 
     mockPrismaSession.deleteMany.mockResolvedValue(deleteResult);
 
-    const result = await deleteSession(refreshToken);
+    const result = await deleteSession(refreshTokenHash);
 
     expect(result).toHaveProperty('count');
     expect(result.count).toBeGreaterThanOrEqual(0);
   });
 
   it('should handle deleting non-existent session', async () => {
-    const refreshToken = 'nonexistent';
+    const refreshTokenHash = 'nonexistent-hash';
     const deleteResult = { count: 0 };
 
     mockPrismaSession.deleteMany.mockResolvedValue(deleteResult);
 
-    const result = await deleteSession(refreshToken);
+    const result = await deleteSession(refreshTokenHash);
 
     expect(result.count).toBe(0);
   });
@@ -208,7 +207,7 @@ describe('Session Repository - deleteUserSessions()', () => {
   });
 
   it('should delete all sessions for user', async () => {
-    const userId = 1;
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
     const deleteResult = { count: 3 };
 
     mockPrismaSession.deleteMany.mockResolvedValue(deleteResult);
@@ -222,7 +221,7 @@ describe('Session Repository - deleteUserSessions()', () => {
   });
 
   it('should return count of deleted sessions', async () => {
-    const userId = 2;
+    const userId = "550e8400-e29b-41d4-a716-446655440002";
     const deleteResult = { count: 5 };
 
     mockPrismaSession.deleteMany.mockResolvedValue(deleteResult);
@@ -233,7 +232,7 @@ describe('Session Repository - deleteUserSessions()', () => {
   });
 
   it('should return 0 when user has no sessions', async () => {
-    const userId = 3;
+    const userId = "550e8400-e29b-41d4-a716-446655440003";
     const deleteResult = { count: 0 };
 
     mockPrismaSession.deleteMany.mockResolvedValue(deleteResult);

@@ -1,6 +1,3 @@
-// src/configs/logger.js
-// Logger configuration with pino-pretty for development and JSON output for production
-
 import { config } from "./variables.js";
 
 /**

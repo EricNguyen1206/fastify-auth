@@ -1,11 +1,9 @@
-// src/plugins/rate-limit.plugin.js
 // Rate limit plugin (Production only)
-
 import fp from 'fastify-plugin';
 import rateLimit from '@fastify/rate-limit';
 import { config } from '../configs/variables.js';
 
-async function rateLimitPlugin(fastify, options) {
+async function rateLimitPlugin(fastify, _options) {
   // Only register in production or if explicitly enabled
   if (!config.isDev) {
     await fastify.register(rateLimit, {

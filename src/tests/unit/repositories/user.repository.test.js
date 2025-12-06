@@ -17,7 +17,7 @@ const mockPrisma = {
 };
 
 // Mock the prisma module
-jest.unstable_mockModule('../../../lib/prisma.js', () => ({
+jest.unstable_mockModule('../../../configs/prisma.js', () => ({
   prisma: mockPrisma,
 }));
 
@@ -41,71 +41,81 @@ describe('User Repository - createUser()', () => {
   it('should create user with correct data', async () => {
     const email = 'newuser@example.com';
     const hashedPassword = '$2b$10$hashedpassword';
-    const name = 'New User';
+    const fullName = 'New User';
     const createdUser = {
-      id: 1,
+      id: "550e8400-e29b-41d4-a716-446655440000",
       email,
-      name,
+      fullName,
+      avatarUrl: null,
+      isActive: true,
       createdAt: new Date(),
     };
 
     mockPrismaUser.create.mockResolvedValue(createdUser);
 
-    const result = await createUser(email, hashedPassword, name);
+    const result = await createUser(email, hashedPassword, fullName);
 
     expect(mockPrismaUser.create).toHaveBeenCalledWith({
       data: {
         email,
-        password: hashedPassword,
-        name,
+        passwordHash: hashedPassword,
+        fullName,
       },
       select: {
         id: true,
         email: true,
-        name: true,
+        fullName: true,
+        avatarUrl: true,
+        isActive: true,
         createdAt: true,
       },
     });
     expect(result).toEqual(createdUser);
   });
 
-  it('should exclude password from returned object', async () => {
+  it('should exclude passwordHash from returned object', async () => {
     const email = 'test@example.com';
     const hashedPassword = '$2b$10$hash';
-    const name = 'Test User';
+    const fullName = 'Test User';
     const createdUser = {
-      id: 2,
+      id: "550e8400-e29b-41d4-a716-446655440001",
       email,
-      name,
+      fullName,
+      avatarUrl: null,
+      isActive: true,
       createdAt: new Date(),
     };
 
     mockPrismaUser.create.mockResolvedValue(createdUser);
 
-    const result = await createUser(email, hashedPassword, name);
+    const result = await createUser(email, hashedPassword, fullName);
 
-    expect(result).not.toHaveProperty('password');
+    expect(result).not.toHaveProperty('passwordHash');
   });
 
-  it('should include id, email, name, createdAt', async () => {
+  it('should include id, email, fullName, avatarUrl, isActive, createdAt', async () => {
     const email = 'test@example.com';
     const hashedPassword = '$2b$10$hash';
-    const name = 'Test User';
+    const fullName = 'Test User';
     const now = new Date();
     const createdUser = {
-      id: 3,
+      id: "550e8400-e29b-41d4-a716-446655440002",
       email,
-      name,
+      fullName,
+      avatarUrl: null,
+      isActive: true,
       createdAt: now,
     };
 
     mockPrismaUser.create.mockResolvedValue(createdUser);
 
-    const result = await createUser(email, hashedPassword, name);
+    const result = await createUser(email, hashedPassword, fullName);
 
-    expect(result).toHaveProperty('id', 3);
+    expect(result).toHaveProperty('id', "550e8400-e29b-41d4-a716-446655440002");
     expect(result).toHaveProperty('email', email);
-    expect(result).toHaveProperty('name', name);
+    expect(result).toHaveProperty('fullName', fullName);
+    expect(result).toHaveProperty('avatarUrl', null);
+    expect(result).toHaveProperty('isActive', true);
     expect(result).toHaveProperty('createdAt', now);
   });
 });
@@ -115,7 +125,7 @@ describe('User Repository - findUserByEmail()', () => {
     jest.clearAllMocks();
   });
 
-  it('should return user with password when found', async () => {
+  it('should return user with passwordHash when found', async () => {
     const email = 'test@example.com';
     const user = createTestUser({ email });
 
@@ -127,7 +137,7 @@ describe('User Repository - findUserByEmail()', () => {
       where: { email },
     });
     expect(result).toEqual(user);
-    expect(result).toHaveProperty('password');
+    expect(result).toHaveProperty('passwordHash');
   });
 
   it('should return null when not found', async () => {
@@ -149,12 +159,14 @@ describe('User Repository - findUserById()', () => {
     jest.clearAllMocks();
   });
 
-  it('should return user without password when found', async () => {
-    const userId = 1;
+  it('should return user without passwordHash when found', async () => {
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
     const userWithoutPassword = {
       id: userId,
       email: 'test@example.com',
-      name: 'Test User',
+      fullName: 'Test User',
+      avatarUrl: null,
+      isActive: true,
       createdAt: new Date(),
     };
 
@@ -167,16 +179,18 @@ describe('User Repository - findUserById()', () => {
       select: {
         id: true,
         email: true,
-        name: true,
+        fullName: true,
+        avatarUrl: true,
+        isActive: true,
         createdAt: true,
       },
     });
     expect(result).toEqual(userWithoutPassword);
-    expect(result).not.toHaveProperty('password');
+    expect(result).not.toHaveProperty('passwordHash');
   });
 
   it('should return null when not found', async () => {
-    const userId = 999;
+    const userId = "550e8400-e29b-41d4-a716-446655440999";
 
     mockPrismaUser.findUnique.mockResolvedValue(null);
 
@@ -187,7 +201,9 @@ describe('User Repository - findUserById()', () => {
       select: {
         id: true,
         email: true,
-        name: true,
+        fullName: true,
+        avatarUrl: true,
+        isActive: true,
         createdAt: true,
       },
     });
@@ -201,12 +217,14 @@ describe('User Repository - updateUser()', () => {
   });
 
   it('should update user data correctly', async () => {
-    const userId = 1;
-    const updateData = { name: 'Updated Name' };
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
+    const updateData = { fullName: 'Updated Name' };
     const updatedUser = {
       id: userId,
       email: 'test@example.com',
-      name: 'Updated Name',
+      fullName: 'Updated Name',
+      avatarUrl: null,
+      isActive: true,
       createdAt: new Date(),
     };
 
@@ -220,20 +238,24 @@ describe('User Repository - updateUser()', () => {
       select: {
         id: true,
         email: true,
-        name: true,
+        fullName: true,
+        avatarUrl: true,
+        isActive: true,
         createdAt: true,
       },
     });
     expect(result).toEqual(updatedUser);
   });
 
-  it('should return updated user without password', async () => {
-    const userId = 1;
-    const updateData = { name: 'New Name' };
+  it('should return updated user without passwordHash', async () => {
+    const userId = "550e8400-e29b-41d4-a716-446655440000";
+    const updateData = { fullName: 'New Name' };
     const updatedUser = {
       id: userId,
       email: 'test@example.com',
-      name: 'New Name',
+      fullName: 'New Name',
+      avatarUrl: null,
+      isActive: true,
       createdAt: new Date(),
     };
 
@@ -241,10 +263,10 @@ describe('User Repository - updateUser()', () => {
 
     const result = await updateUser(userId, updateData);
 
-    expect(result).not.toHaveProperty('password');
+    expect(result).not.toHaveProperty('passwordHash');
     expect(result).toHaveProperty('id');
     expect(result).toHaveProperty('email');
-    expect(result).toHaveProperty('name');
+    expect(result).toHaveProperty('fullName');
     expect(result).toHaveProperty('createdAt');
   });
 });

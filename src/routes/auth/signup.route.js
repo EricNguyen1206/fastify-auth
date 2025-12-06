@@ -8,11 +8,11 @@ export default async function signupRoute(fastify, options) {
     schema: {
       body: {
         type: 'object',
-        required: ['email', 'password', 'name'],
+        required: ['email', 'password', 'fullName'],
         properties: {
           email: { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 8 },
-          name: { type: 'string', minLength: 2 }
+          fullName: { type: 'string', minLength: 2 }
         }
       },
       response: {
@@ -20,16 +20,16 @@ export default async function signupRoute(fastify, options) {
           type: 'object',
           properties: {
             message: { type: 'string' },
-            userId: { type: 'integer' }
+            userId: { type: 'string' }
           }
         }
       }
     }
   }, async (request, reply) => {
-    const { email, password, name } = request.body;
+    const { email, password, fullName } = request.body;
     
     try {
-      const user = await signup(email, password, name);
+      const user = await signup(email, password, fullName);
       
       fastify.log.info(`User registered: ${email}`);
       

@@ -22,6 +22,11 @@ const mockSessionRepository = {
   deleteSession: jest.fn(),
 };
 
+const mockRoleRepository = {
+  findRoleByName: jest.fn(),
+  assignRoleToUser: jest.fn(),
+};
+
 const mockConfig = {
   jwt: {
     accessExpiry: "15m",
@@ -40,6 +45,10 @@ jest.unstable_mockModule(
 jest.unstable_mockModule(
   "../../../repositories/session.repository.js",
   () => mockSessionRepository
+);
+jest.unstable_mockModule(
+  "../../../repositories/role.repository.js",
+  () => mockRoleRepository
 );
 jest.unstable_mockModule("../../../configs/variables.js", () => ({
   config: mockConfig,
@@ -64,22 +73,30 @@ describe("Auth Service - signup()", () => {
   it("should successfully create user with hashed password", async () => {
     const email = "newuser@example.com";
     const password = "password123";
-    const name = "New User";
+    const fullName = "New User";
     const hashedPassword = "$2b$10$hashedpassword";
-    const createdUser = createTestUser({ email, name, id: 2 });
+    const createdUser = createTestUser({ email, fullName, id: "550e8400-e29b-41d4-a716-446655440002" });
+    const userRole = { id: "role-user-id", name: "user" };
 
     mockUserRepository.emailExists.mockResolvedValue(false);
     mockBcrypt.hash.mockResolvedValue(hashedPassword);
     mockUserRepository.createUser.mockResolvedValue(createdUser);
+    mockRoleRepository.findRoleByName.mockResolvedValue(userRole);
+    mockRoleRepository.assignRoleToUser.mockResolvedValue({});
 
-    const result = await signup(email, password, name);
+    const result = await signup(email, password, fullName);
 
     expect(mockUserRepository.emailExists).toHaveBeenCalledWith(email);
     expect(mockBcrypt.hash).toHaveBeenCalledWith(password, 10);
     expect(mockUserRepository.createUser).toHaveBeenCalledWith(
       email,
       hashedPassword,
-      name
+      fullName
+    );
+    expect(mockRoleRepository.findRoleByName).toHaveBeenCalledWith("user");
+    expect(mockRoleRepository.assignRoleToUser).toHaveBeenCalledWith(
+      createdUser.id,
+      userRole.id
     );
     expect(result).toEqual(createdUser);
   });
@@ -87,11 +104,11 @@ describe("Auth Service - signup()", () => {
   it("should throw 409 error when email already exists", async () => {
     const email = "existing@example.com";
     const password = "password123";
-    const name = "Test User";
+    const fullName = "Test User";
 
     mockUserRepository.emailExists.mockResolvedValue(true);
 
-    await expect(signup(email, password, name)).rejects.toMatchObject({
+    await expect(signup(email, password, fullName)).rejects.toMatchObject({
       message: "Email already exists",
       statusCode: 409,
     });
@@ -104,15 +121,35 @@ describe("Auth Service - signup()", () => {
   it("should hash password with bcryptjs salt rounds of 10", async () => {
     const email = "test@example.com";
     const password = "mypassword";
-    const name = "Test";
+    const fullName = "Test";
 
     mockUserRepository.emailExists.mockResolvedValue(false);
     mockBcrypt.hash.mockResolvedValue("$2b$10$hashed");
     mockUserRepository.createUser.mockResolvedValue(createTestUser());
+    mockRoleRepository.findRoleByName.mockResolvedValue({ id: "role-id", name: "user" });
+    mockRoleRepository.assignRoleToUser.mockResolvedValue({});
 
-    await signup(email, password, name);
+    await signup(email, password, fullName);
 
     expect(mockBcrypt.hash).toHaveBeenCalledWith(password, 10);
+  });
+
+  it("should still create user if role not found", async () => {
+    const email = "newuser@example.com";
+    const password = "password123";
+    const fullName = "New User";
+    const hashedPassword = "$2b$10$hashedpassword";
+    const createdUser = createTestUser({ email, fullName });
+
+    mockUserRepository.emailExists.mockResolvedValue(false);
+    mockBcrypt.hash.mockResolvedValue(hashedPassword);
+    mockUserRepository.createUser.mockResolvedValue(createdUser);
+    mockRoleRepository.findRoleByName.mockResolvedValue(null);
+
+    const result = await signup(email, password, fullName);
+
+    expect(mockRoleRepository.assignRoleToUser).not.toHaveBeenCalled();
+    expect(result).toEqual(createdUser);
   });
 });
 
@@ -132,17 +169,20 @@ describe("Auth Service - signin()", () => {
     const result = await signin(email, password);
 
     expect(mockUserRepository.findUserByEmail).toHaveBeenCalledWith(email);
-    expect(mockBcrypt.compare).toHaveBeenCalledWith(password, user.password);
+    expect(mockBcrypt.compare).toHaveBeenCalledWith(password, user.passwordHash);
     expect(result).toEqual({
       id: user.id,
       email: user.email,
-      name: user.name,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      isActive: user.isActive,
       createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     });
-    expect(result).not.toHaveProperty("password");
+    expect(result).not.toHaveProperty("passwordHash");
   });
 
-  it("should return user without password field", async () => {
+  it("should return user without passwordHash field", async () => {
     const email = "test@example.com";
     const password = "password123";
     const user = createTestUser({ email });
@@ -152,10 +192,10 @@ describe("Auth Service - signin()", () => {
 
     const result = await signin(email, password);
 
-    expect(result).not.toHaveProperty("password");
+    expect(result).not.toHaveProperty("passwordHash");
     expect(result).toHaveProperty("id");
     expect(result).toHaveProperty("email");
-    expect(result).toHaveProperty("name");
+    expect(result).toHaveProperty("fullName");
   });
 
   it("should throw 401 when user not found", async () => {
@@ -186,7 +226,7 @@ describe("Auth Service - signin()", () => {
       statusCode: 401,
     });
 
-    expect(mockBcrypt.compare).toHaveBeenCalledWith(password, user.password);
+    expect(mockBcrypt.compare).toHaveBeenCalledWith(password, user.passwordHash);
   });
 });
 
@@ -264,11 +304,11 @@ describe("Auth Service - refreshAccessToken()", () => {
   });
 
   it("should return new access token with valid refresh token", async () => {
-    const refreshToken = "mock-refresh-token-1";
+    const refreshToken = "mock-refresh-token-550e8400-e29b-41d4-a716-446655440000";
     const mockJwt = createMockJWT();
-    const session = createTestSession({ refreshToken });
+    const session = createTestSession({ refreshTokenHash: refreshToken });
 
-    mockJwt.verify.mockReturnValue({ userId: 1, type: "refresh" });
+    mockJwt.verify.mockReturnValue({ userId: "550e8400-e29b-41d4-a716-446655440000", type: "refresh" });
     mockSessionRepository.findSessionByToken.mockResolvedValue(session);
 
     const result = await refreshAccessToken(refreshToken, mockJwt);
@@ -276,10 +316,10 @@ describe("Auth Service - refreshAccessToken()", () => {
     expect(mockJwt.verify).toHaveBeenCalledWith(refreshToken);
     expect(mockSessionRepository.findSessionByToken).toHaveBeenCalledWith(
       refreshToken,
-      1
+      "550e8400-e29b-41d4-a716-446655440000"
     );
     expect(mockJwt.sign).toHaveBeenCalledWith(
-      { userId: 1 },
+      { userId: "550e8400-e29b-41d4-a716-446655440000" },
       { expiresIn: "15m" }
     );
     expect(result).toMatch(/mock-access-token/);
@@ -305,7 +345,7 @@ describe("Auth Service - refreshAccessToken()", () => {
     const refreshToken = "mock-access-token-1"; // Wrong type
     const mockJwt = createMockJWT();
 
-    mockJwt.verify.mockReturnValue({ userId: 1, type: undefined }); // Not a refresh token
+    mockJwt.verify.mockReturnValue({ userId: "550e8400-e29b-41d4-a716-446655440000", type: undefined }); // Not a refresh token
 
     await expect(
       refreshAccessToken(refreshToken, mockJwt)
@@ -316,10 +356,10 @@ describe("Auth Service - refreshAccessToken()", () => {
   });
 
   it("should throw 401 when session not found in DB", async () => {
-    const refreshToken = "mock-refresh-token-1";
+    const refreshToken = "mock-refresh-token-550e8400-e29b-41d4-a716-446655440000";
     const mockJwt = createMockJWT();
 
-    mockJwt.verify.mockReturnValue({ userId: 1, type: "refresh" });
+    mockJwt.verify.mockReturnValue({ userId: "550e8400-e29b-41d4-a716-446655440000", type: "refresh" });
     mockSessionRepository.findSessionByToken.mockResolvedValue(null);
 
     await expect(
@@ -353,7 +393,7 @@ describe("Auth Service - signout()", () => {
   });
 
   it("should delete session when refresh token provided", async () => {
-    const refreshToken = "mock-refresh-token-1";
+    const refreshToken = "mock-refresh-token-550e8400-e29b-41d4-a716-446655440000";
 
     mockSessionRepository.deleteSession.mockResolvedValue({ count: 1 });
 

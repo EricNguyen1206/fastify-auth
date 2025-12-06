@@ -1,4 +1,3 @@
-// src/plugins/security.plugin.js
 // Security plugin with Helmet and CORS
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
@@ -9,7 +8,7 @@ import { config } from "../configs/variables.js";
  * Security plugin
  * Configures security headers and CORS
  */
-async function securityPlugin(fastify, options) {
+async function securityPlugin(fastify, _options) {
   // Register Helmet for security headers
   await fastify.register(helmet, {
     // Content Security Policy

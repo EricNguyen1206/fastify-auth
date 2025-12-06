@@ -12,16 +12,20 @@ import {
   findSessionByToken,
   deleteSession,
 } from "../repositories/session.repository.js";
+import {
+  findRoleByName,
+  assignRoleToUser,
+} from "../repositories/role.repository.js";
 import { config } from "../configs/variables.js";
 
 /**
  * Register a new user
  * @param {string} email
  * @param {string} password
- * @param {string} name
+ * @param {string} fullName
  * @returns {Promise<Object>} Created user
  */
-export async function signup(email, password, name) {
+export async function signup(email, password, fullName) {
   // Check if email already exists
   const exists = await emailExists(email);
   if (exists) {
@@ -34,7 +38,15 @@ export async function signup(email, password, name) {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Create user
-  return await createUser(email, hashedPassword, name);
+  const user = await createUser(email, hashedPassword, fullName);
+
+  // Assign default 'user' role
+  const userRole = await findRoleByName("user");
+  if (userRole) {
+    await assignRoleToUser(user.id, userRole.id);
+  }
+
+  return user;
 }
 
 /**
@@ -52,7 +64,7 @@ export async function signin(email, password) {
     throw error;
   }
 
-  const validPassword = await bcrypt.compare(password, user.password);
+  const validPassword = await bcrypt.compare(password, user.passwordHash);
 
   if (!validPassword) {
     const error = new Error("Invalid credentials");
@@ -60,8 +72,8 @@ export async function signin(email, password) {
     throw error;
   }
 
-  // Return user without password
-  const { password: _, ...userWithoutPassword } = user;
+  // Return user without passwordHash
+  const { passwordHash: _, ...userWithoutPassword } = user;
   return userWithoutPassword;
 }
 
